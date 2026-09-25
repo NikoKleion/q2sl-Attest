@@ -1,0 +1,26 @@
+one round is a fixed channel on the logical qubit when the decoder explains every syndrome,
+so the round count costs nothing once the map is built
+
+control against the density-matrix path of eavesdrop.repeated_extraction, same recovery:
+  3-qubit repetition         max difference over six rounds 1.1e-16
+  5-qubit [[5,1,3]]          max difference over six rounds 1.5e-16
+  Pauli control, dephasing on the repetition code: max per-round distance 0.0e+00
+
+held state at the 163.3 us and 77.0 us device channel, 3000 rounds
+cumulative is the sum of the per-round Chernoff exponents, in nats
+
+recovery is BP+OSD, which explains every syndrome on all five codes
+  code                       order    round 1  round 300     sum 10    sum 100    sum 300   sum 1000   sum 3000
+  3-qubit repetition             1  1.820e-02  1.761e-02  1.836e-01  1.827e+00  5.420e+00  1.738e+01  4.679e+01
+  [[4,1,2]]                      2  1.473e-04  3.782e-06  3.188e-04  9.525e-04  1.019e-03  1.020e-03  1.020e-03
+  Hamming [[7,1,2]]              3  8.936e-07  5.894e-10  3.884e-09  9.952e-09  1.003e-08  1.003e-08  1.003e-08
+  Shor [[9,1,3]]                 3  6.032e-06  5.458e-06  9.566e-06  7.339e-05  1.808e-04  4.138e-04  6.576e-04
+  rotated surface [[9,1,3]]      3  1.564e-06  1.401e-06  1.095e-08  1.060e-07  2.959e-07  7.780e-07  1.329e-06
+
+the sum depends on the decoder, since a correction that damages the state ends the leak with it
+  decoder                       round 1  round 300    sum 300   sum 3000
+  single-qubit table          1.820e-02  1.761e-02  5.420e+00  4.679e+01
+  BP+OSD                      1.820e-02  1.761e-02  5.420e+00  4.679e+01
+  any coset representative    1.820e-02  2.917e-03  2.520e+00  2.995e+00
+
+  the order sets how fast the sum stops growing, at a fixed decoder

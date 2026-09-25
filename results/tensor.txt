@@ -1,0 +1,34 @@
+against the exact engine, L2 distance at amplitude damping 0.05
+  code                                  exact   contracted
+  3-qubit repetition             1.645448e-01 1.645448e-01
+  [[4,1,2]]                      6.381639e-03 6.381639e-03
+  Hamming [[7,1,2]]              1.211094e-04 1.211094e-04
+  Shor [[9,1,3]]                 5.568814e-04 5.568814e-04
+  rotated surface [[9,1,3]]      2.024389e-04 2.024389e-04
+  toric L=2 [logical 0]          2.556069e-03 2.556069e-03
+  toric L=2 [logical 1]          2.556069e-03 2.556069e-03
+  every code at damping 0.2 and 0.05 and under a coherent X rotation of 0.3 agrees to 1e-12: True
+  a Pauli channel gives 0.0 on Shor
+
+precision at small damping: L2 / gamma^3 on Hamming [[7,1,2]], which must settle to a constant
+    gamma   exact engine    contraction
+    1e-03       1.114906       1.114906
+    1e-04       1.117687       1.117721
+    1e-05       1.252118       1.118003
+    1e-06      15.222137       1.118031
+    1e-08                      1.118034
+    1e-10                      1.118034
+
+past the exact engine, which stops at about 14 qubits: L2 at damping 0.05, and the exponent of
+L2 against damping fitted over 1e-4, 1e-5 and 1e-6
+  code                            n   k   L2 at 0.05  exponent
+  rotated surface d=5            25   1   2.6684e-07     5.000
+  rotated surface d=7            49   1   2.5047e-10     7.000
+  rotated surface d=9            81   1   1.8129e-13     8.999
+  rotated surface d=11          121   1   1.0384e-16    10.999
+  hypergraph product rep4        25   1   1.3616e-06     4.000
+  hypergraph product rep5        41   1   2.5993e-08     5.000
+  toric L=3 [logical 0]          18   2   5.3895e-05     3.000
+  rotated surface d=13          169   1   out of reach: width past 26: True
+  toric L=4 [logical 0]          32   2   out of reach: width past 26: True
+  BB [[18,4,4]] [logical 0]      18   4   out of reach: width past 26: True

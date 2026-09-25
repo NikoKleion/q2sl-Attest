@@ -1,0 +1,9 @@
+one-shot attack against the closed form (1 - TVD)/2, 200000 trials
+  repetition           theory 0.26000  simulated 0.26056 +/- 0.00098
+  code_4_1_2           theory 0.44880  simulated 0.45066 +/- 0.00111
+  code_4_1_2 coherent  theory 0.34059  simulated 0.34012 +/- 0.00106
+  hamming_7            theory 0.49130  simulated 0.49080 +/- 0.00112
+Chernoff grid resolution
+  grid    51: C=0.00100229 s*=0.4800
+  grid   201: C=0.00100233 s*=0.4850
+  grid  2001: C=0.00100234 s*=0.4835

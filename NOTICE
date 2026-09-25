@@ -1,0 +1,63 @@
+q2sl attest (Quantum Syndrome and Source Limits)
+Copyright 2026 Nikolas Klein
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+Qiskit is a trademark of International Business Machines Corporation. This
+project uses Qiskit and is not affiliated with or endorsed by IBM.
+
+Third party material
+--------------------
+
+QECops, by Jithesh Mithra. MIT licensed. doi:10.5281/zenodo.19410365,
+https://github.com/JitheshMithra/QECops
+
+  Two things in this package derive from QECops:
+
+    syndrome_leakage/hardware.py   the Shor [[9,1,3]] syndrome-extraction circuit
+                                   layout used by build_shor_circuits, ported to
+                                   this package's generator order. The state
+                                   preparation differs: QECops encodes |0> and |1>,
+                                   which are |+_L> and |-_L> in this package's
+                                   logical basis, so build_shor_circuits feeds
+                                   |+> and |-> instead to prepare |0_L> and |1_L>.
+
+    syndrome_leakage/channels.py   the quenched per-qubit noise model, a product
+                                   channel with a different damping strength on
+                                   each qubit, which the `disorder` run uses.
+
+  MIT License, Copyright (c) Jithesh Mithra
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+NIST SP 800-90B reference implementation test vectors, in attest/tests/nist_vectors/:
+
+    rand1_short.bin, rand4_short.bin, rand4_short.res, rand8_short.bin, rand8_short.res
+
+  Unmodified copies of test vectors and reference output from NIST's reference
+  implementation of SP 800-90B, https://github.com/usnistgov/SP800-90B_EntropyAssessment.
+  NIST-developed software is provided by NIST as a public service and, as a work of the
+  United States Government, is not subject to copyright protection in the United States
+  (17 U.S.C. 105). It is provided as is, with no warranty of any kind, express, implied
+  or statutory, and NIST assumes no responsibility whatsoever for its use. See
+  attest/tests/nist_vectors/README.md.
+
+NistRng, by Luca Pasqualini, https://github.com/InsaneMonster/NistRng, BSD 3-Clause.
+
+  The optional SP 800-22 path in attest/qrng_attest/sp800_22.py calls it as an
+  optional dependency; no part of it is copied into this repository.

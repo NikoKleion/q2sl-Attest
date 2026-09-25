@@ -1,0 +1,10 @@
+[[4,1,2]] no-jump branch at gamma 0.1, eigenvalues of P_C A^dagger A P_C
+  this package          0.810000000000  0.828050000000
+  Leung et al. eq. 39   0.810000000000  0.828050000000
+
+code          analytic order  syndrome slope  branch spread slope
+repetition                 1            0.99                 0.99
+five_qubit              none            none                 5.00
+steane                  none            none                 2.98
+code_4_1_2                 2            1.98                 1.99
+hamming_7                  3            2.97                 2.98

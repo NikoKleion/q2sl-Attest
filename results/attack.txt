@@ -1,0 +1,14 @@
+Hamming [[7,1,2]], amplitude_damping(0.2), 200000 trials
+syndrome TVD 1.7408e-02, Chernoff 0.001002 nats at s*=0.485, Bhattacharyya coefficient 0.998999
+
+  rounds   ML attack error      Chernoff rate   Bhattacharyya bound
+       1   0.4908 +/- 0.0011            0.4995                0.4995
+      10   0.4518 +/- 0.0011            0.4950                0.4950
+      50   0.3782 +/- 0.0011            0.4756                0.4756
+     200   0.2625 +/- 0.0010            0.4092                0.4093
+
+one-shot closed form (1 - TVD)/2 = 0.4913
+rounds to 1 percent error, by code and gamma:
+  gamma=0.1: repetition 15, code_4_1_2 282, hamming_7 26510
+  gamma=0.2: repetition 8, code_4_1_2 88, hamming_7 4595
+  gamma=0.3: repetition 5, code_4_1_2 50, hamming_7 1991

@@ -1,0 +1,52 @@
+job dao2md5r85ps73fen5lg on ibm_fez, 16000 shots per circuit, 41 quantum seconds, plan open and free
+data qubits [111, 91, 93, 107, 118, 110, 90, 78, 68]
+  T1 us [182, 171, 157, 126, 141, 121, 156, 115, 63]
+  T2 us [113, 25, 169, 29, 58, 116, 127, 99, 61]
+ancilla qubits [98, 92, 108, 109, 89, 69], readout error [0.0061, 0.0146, 0.0045, 0.01, 0.0099, 0.0081]
+transpiled depth [63, 64], cz [52] on every circuit
+
+1. The records through estimate.py
+
+   six Z generators, 64 outcomes
+
+        record          shots  distance   floor       p  achieved  corrected       95% interval
+  ---------------------------------------------------------------------------------------------
+          0 us (16000, 16000)    0.0108  0.0133  0.8385    0.0000     0.0000   (0.0000, 0.0133)
+         20 us (16000, 16000)    0.0988  0.0256  0.0000    0.0884     0.0860   (0.0730, 0.1039)
+         50 us (16000, 16000)    0.2233  0.0292  0.0000    0.2219     0.2202   (0.2068, 0.2370)
+        100 us (16000, 16000)    0.2049  0.0286  0.0000    0.2006     0.1986   (0.1854, 0.2158)
+
+  distance is the plug-in reading and sits above the floor of its shot count even at zero leak
+  achieved: the likelihood ratio fitted on half of each record and scored on the other half
+
+   number of generators that fired, 7 outcomes
+
+        record          shots  distance   floor       p  achieved  corrected       95% interval
+  ---------------------------------------------------------------------------------------------
+          0 us (16000, 16000)    0.0026  0.0057  0.8860    0.0000     0.0000   (0.0000, 0.0107)
+         20 us (16000, 16000)    0.0554  0.0087  0.0000    0.0539     0.0523   (0.0384, 0.0694)
+         50 us (16000, 16000)    0.1254  0.0093  0.0000    0.1218     0.1203   (0.1065, 0.1372)
+        100 us (16000, 16000)    0.1084  0.0091  0.0000    0.1069     0.1046   (0.0915, 0.1223)
+
+  distance is the plug-in reading and sits above the floor of its shot count even at zero leak
+  achieved: the likelihood ratio fitted on half of each record and scored on the other half
+
+2. Measured against models of the same round
+   uniform: one damping channel at the median T1 of the nine data qubits
+   per qubit: each data qubit's own T1 and T2, in the layout the job ran on
+   readout: the per-qubit model, each syndrome bit flipped at its ancilla's readout error
+   exposure: the readout model over the delay plus the time the scheduled circuit itself takes
+
+   delay us  measured   uniform  per qubit   readout  exposure  measured / exposure
+        0.0    0.0108    0.0000     0.0000    0.0000    0.0006      under the floor
+       20.0    0.0988    0.0411     0.0501    0.0466    0.0686                1.440
+       50.0    0.2233    0.2492     0.2745    0.2554    0.2792                0.800
+      100.0    0.2049    0.4214     0.4071    0.3788    0.3739                0.548
+
+3. Trivial-syndrome probability, measured
+
+   delay us      0_L      1_L
+        0.0   0.7143   0.7158
+       20.0   0.3047   0.3039
+       50.0   0.2311   0.1729
+      100.0   0.2449   0.1761

@@ -1,0 +1,78 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # the base install, numpy only, which is what the README promises works
+  base:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Test suite
+        run: python -m pytest tests -q
+      - name: Zero-dependency runner
+        run: python tests/run_tests.py
+      - name: Attest test suite
+        working-directory: attest
+        run: python -m pytest tests -q
+      - name: Attest zero-dependency runner
+        working-directory: attest
+        run: python tests/run_tests.py
+
+  # every optional path, so the circuit and hardware half is actually exercised
+  full:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install with every extra
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[full]"
+      - name: Test suite
+        run: python -m pytest tests -q
+      - name: Attest test suite
+        working-directory: attest
+        run: python -m pytest tests -q
+      - name: No test may be skipped for a missing dependency
+        run: |
+          python -m pytest tests -q -rs 2>&1 | tee out.txt
+          (cd attest && python -m pytest tests -q -rs) 2>&1 | tee -a out.txt
+          if grep -qiE "SKIPPED.*(requires|needs) " out.txt; then
+            echo "a dependency-gated test skipped even with [full] installed:"
+            grep -iE "SKIPPED" out.txt
+            exit 1
+          fi
+      - name: The documented commands run
+        run: |
+          python q2sl.py assess shor
+          python q2sl.py assess steane
+          python q2sl.py attest demo --shots 2000
+          python -m syndrome_leakage.figures
+      - name: A saved run must not be overwritten by an incomplete one
+        run: |
+          git diff --exit-code -- results/ ':!results/figures' || (echo "a run modified tracked results"; exit 1)

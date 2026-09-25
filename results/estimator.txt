@@ -1,0 +1,20 @@
+statistics of one record against a known leak, Shor code at the ibm_fez T1
+power is the fraction of draws with a permutation p below 0.05, at the stated leak
+false positive is the same test on two draws of one state, which must sit near 0.05
+
+  delay us   shots statistic                 leak  power  false positive  corrected
+      20.0    4000 full syndrome (256)     0.0466   0.62            0.05    0.0138
+      20.0    4000 Z generators (64)       0.0466   0.78            0.05    0.0195
+      20.0    4000 number that fired (7)   0.0276   0.68            0.08    0.0161
+      20.0   16000 full syndrome (256)     0.0466   1.00            0.03    0.0278
+      20.0   16000 Z generators (64)       0.0466   1.00            0.05    0.0369
+      20.0   16000 number that fired (7)   0.0276   1.00            0.08    0.0227
+
+      50.0    4000 full syndrome (256)     0.2684   1.00            0.00    0.2230
+      50.0    4000 Z generators (64)       0.2684   1.00            0.08    0.2603
+      50.0    4000 number that fired (7)   0.1591   1.00            0.03    0.1518
+      50.0   16000 full syndrome (256)     0.2684   1.00            0.02    0.2635
+      50.0   16000 Z generators (64)       0.2684   1.00            0.03    0.2664
+      50.0   16000 number that fired (7)   0.1591   1.00            0.05    0.1565
+
+the achieved distance sits below the leak when the shots are few, since the rule is fitted on half of them

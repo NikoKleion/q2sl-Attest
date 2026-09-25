@@ -1,0 +1,10 @@
+standard codes, max |projector engine - expectation engine| = 5.6e-16
+rotated surface [[9,1,3]]: n 9, 8 stabilizers, Z_L ZZZIIIIII, X_L XIIXIIXII, analytic leak order 3
+
+channel                 population TVD
+amplitude damping 0.1     5.317650e-03
+amplitude damping 0.2     3.128320e-02
+coherent diagonal 0.3     0.000000e+00
+depolarizing 0.1          0.000000e+00
+control at amplitude damping 0.2: max difference 1.7e-16
+depolarizing, spread of stabilizer expectations over logical states 2.2e-16

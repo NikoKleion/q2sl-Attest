@@ -1,0 +1,28 @@
+a flip on syndrome bit j multiplies the expectation of every group element that contains generator j by 1 - 2q
+control against bit flips applied one outcome at a time: max difference 5.6e-17
+
+leak after readout error, over the leak without it
+  code                        bits delay us   q=0.005    q=0.01    q=0.02    q=0.05
+  3-qubit repetition             2     20.0    0.9867    0.9735    0.9472    0.8700
+  3-qubit repetition             2     50.0    0.9867    0.9735    0.9472    0.8700
+  3-qubit repetition             2    100.0    0.9867    0.9735    0.9472    0.8700
+  Shor, six Z generators         6     20.0    0.9606    0.9225    0.8498    0.6585
+  Shor, six Z generators         6     50.0    0.9606    0.9225    0.8498    0.6585
+  Shor, six Z generators         6    100.0    0.9606    0.9225    0.8498    0.6585
+
+  the factor does not move with the delay, which is the constant attenuation the hardware fit assumed
+
+the hardware fit needed a constant attenuation of 0.945, which on two bits is q = 0.0208
+readout error of fake_fez: median 0.0076, quartiles 0.0049 and 0.0135
+so readout alone covers 36 percent of the flip rate the fit implies
+
+the `shor_noise` run measured 1.09, 0.89 and 0.77 of the ideal leak at the three delays, which
+moves with the delay, so bit flips alone do not account for it. Extraction also damps the data
+qubits, which raises the leak where it is small and compresses it where it is large:
+
+  model                                 20 us    50 us   100 us
+  bit flips only, q=0.02                0.850    0.850    0.850
+  extra damping 0.01, q=0.01            1.071    0.955    0.919
+  extra damping 0.02, q=0.02            1.134    0.910    0.844
+  extra damping 0.03, q=0.02            1.291    0.939    0.840
+  shor_noise, full noise model           1.09     0.89     0.77

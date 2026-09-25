@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "q2sl-attest"
+version = "1.0.0"
+description = "q2sl attest (Quantum Syndrome and Source Limits): the information a stabilizer code's syndrome carries about the encoded logical state, and entropy assessment and attestation of quantum random number generation, with Qiskit"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.11"
+authors = [{name = "Nikolas Klein", email = "nikomaxman@gmail.com"}]
+dependencies = ["numpy>=1.24"]
+keywords = ["qiskit", "quantum", "quantum-computing", "quantum-error-correction", "syndrome", "side-channel",
+            "qrng", "random-number-generation", "min-entropy", "nist-sp-800-90b", "cryptography"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.optional-dependencies]
+wasserstein = ["scipy"]
+zx = ["pyzx"]
+hardware = ["qiskit>=2.3", "qiskit-aer", "qiskit-ibm-runtime"]  # >=2.3 reads the saved QPY circuits
+reconstruction = ["torch", "ldpc"]
+plots = ["matplotlib"]
+stim = ["stim", "pymatching"]
+tensor = ["cotengra>=0.7"]
+qldpc = ["qldpc>=0.3"]
+sp80022 = ["nistrng>=1.2"]
+dev = ["pytest"]
+full = ["scipy", "pyzx", "qiskit>=2.3", "qiskit-aer", "qiskit-ibm-runtime", "torch", "ldpc", "stim", "pymatching",
+        "matplotlib", "cotengra>=0.7", "qldpc>=0.3", "nistrng>=1.2", "pytest"]
+
+[project.urls]
+Repository = "https://github.com/NikoKleion/q2sl-Attest"
+Issues = "https://github.com/NikoKleion/q2sl-Attest/issues"
+
+[project.scripts]
+q2sl = "q2sl:main"
+qrng-attest = "qrng_attest.__main__:main"
+
+[tool.setuptools]
+packages = ["syndrome_leakage", "qrng_attest", "entropy_fusion", "suite", "reconstruction", "reconstruction.models"]
+py-modules = ["q2sl"]
+
+[tool.setuptools.package-dir]
+qrng_attest = "attest/qrng_attest"
+
+[tool.setuptools.package-data]
+reconstruction = ["models/*.pt"]
+qrng_attest = ["py.typed"]

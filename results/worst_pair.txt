@@ -1,0 +1,9 @@
+Bloch grid of 58 logical states, Chernoff maximised over all pairs
+amplitude_damping (0.2)
+  repetition   worst 0.6539  axis 0.6539  axis is worst: True
+  code_4_1_2   worst 0.0526  axis 0.0526  axis is worst: True
+  hamming_7    worst 0.0010  axis 0.0010  axis is worst: True
+coherent_diagonal (0.3)
+  repetition   worst -0.0000  axis -0.0000  axis is worst: True
+  code_4_1_2   worst 0.3839  axis 0.3839  axis is worst: True
+  hamming_7    worst 0.0003  axis 0.0003  axis is worst: True

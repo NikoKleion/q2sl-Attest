@@ -1,0 +1,46 @@
+1. Sampling error on the measured distance
+   bootstrap: resample both distributions at the shot count and recompute
+
+   delay    0.0 us: measured 0.0140  bootstrap SE 0.0031
+   delay   20.0 us: measured 0.3412  bootstrap SE 0.0082
+   delay   50.0 us: measured 0.5888  bootstrap SE 0.0082
+   delay  100.0 us: measured 0.7110  bootstrap SE 0.0074
+
+2. Null floor
+   distance between two independent samples from one distribution
+
+   null mean 0.0052, 95th pct 0.0100, max 0.0190
+   measured zero-delay distance 0.0140  ->  2.7x the null mean
+   p(null >= measured) = 0.0047
+
+3. T1 fitted from the leak, against the device value
+   model: measured = a * simulated(gamma(t, T1)), fitted on the nonzero delays
+
+   fitted T1           138.5 us
+   device median T1    133.2 us
+   ratio               1.040
+   attenuation a       0.945   (1.0 = no readout blurring)
+   rms residual       0.0089
+
+4. MEASURED vs SIMULATED AT THE DEVICE T1
+
+    delay us   measured   +/-SE   simulated     diff   ratio
+        20.0     0.3412  0.0082      0.3600  -0.0187   0.948
+        50.0     0.5888  0.0082      0.6451  -0.0563   0.913
+       100.0     0.7110  0.0074      0.7476  -0.0366   0.951
+
+5. THE SAME RECORDS THROUGH estimate.py
+   permutation test for any difference, and the distance a fitted likelihood ratio achieves
+   on held-out shots
+
+   ibm_fez records
+
+        record          shots  distance   floor       p  achieved  corrected       95% interval
+  ---------------------------------------------------------------------------------------------
+          0 us   (4000, 4000)    0.0140  0.0054  0.0065    0.0130     0.0114   (0.0000, 0.0440)
+         20 us   (4000, 4000)    0.3412  0.0105  0.0000    0.3394     0.3364   (0.3102, 0.3685)
+         50 us   (4000, 4000)    0.5888  0.0126  0.0000    0.5880     0.5840   (0.5629, 0.6131)
+        100 us   (4000, 4000)    0.7110  0.0134  0.0000    0.7120     0.7081   (0.6902, 0.7337)
+
+  distance is the plug-in reading and sits above the floor of its shot count even at zero leak
+  achieved: the likelihood ratio fitted on half of each record and scored on the other half

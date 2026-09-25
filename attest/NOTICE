@@ -1,0 +1,25 @@
+qrng-attest
+Copyright 2026 Nikolas Klein
+
+This product includes software developed by Nikolas Klein, licensed under the
+Apache License, Version 2.0. See LICENSE.
+
+Third party material, not covered by that grant:
+
+  tests/nist_vectors/rand1_short.bin
+  tests/nist_vectors/rand4_short.bin
+  tests/nist_vectors/rand4_short.res
+  tests/nist_vectors/rand8_short.bin
+  tests/nist_vectors/rand8_short.res
+
+  Unmodified copies of test vectors and reference output from NIST's reference
+  implementation of SP 800-90B, https://github.com/usnistgov/SP800-90B_EntropyAssessment.
+  NIST-developed software is provided by NIST as a public service and, as a work of the
+  United States Government, is not subject to copyright protection in the United States
+  (17 U.S.C. 105). It is provided as is, with no warranty of any kind, express, implied
+  or statutory, and NIST assumes no responsibility whatsoever for its use. See
+  tests/nist_vectors/README.md.
+
+The optional SP 800-22 path calls NistRng by Luca Pasqualini,
+https://github.com/InsaneMonster/NistRng, BSD 3-Clause. It is an optional dependency and
+no part of it is copied into this repository.

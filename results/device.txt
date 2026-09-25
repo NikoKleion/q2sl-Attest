@@ -1,0 +1,8 @@
+T1=163.3us T2=77.0us, syndrome cycle 1.0us
+code          pop TVD/round   rounds->1%
+repetition        1.820e-02          251
+five_qubit        3.274e-17         None
+steane            9.556e-17         None
+code_4_1_2        1.473e-04        62539
+hamming_7         8.936e-07   9606433269
+control, T1 to infinity: repetition TVD 3.00e-15

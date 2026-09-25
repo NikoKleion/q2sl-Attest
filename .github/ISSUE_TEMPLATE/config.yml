@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A vulnerability, or a code reported as protected that leaks
+    url: https://github.com/NikoKleion/q2sl-Attest/blob/main/SECURITY.md
+    about: Report these privately, as described in SECURITY.md, not in a public issue.

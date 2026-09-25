@@ -1,0 +1,21 @@
+Shor Z-check circuits on the calibration of fake_fez, one round, 156-qubit device
+transpiled depth 64, 52 cz, on 15 qubits
+|1_L> differs from |0_L> by a Z on one data qubit, a frame change, so the two preparations carry the same gate count
+seeds are spaced by more than the shot count; close seeds share Aer's random numbers
+
+4000 shots per circuit
+  delay us    leak    null   ideal  measured/ideal  fired leak  fired null  trivial 0_L
+       0.0  0.0198  0.0248  0.0000               -      0.0038      0.0145       0.8363
+      20.0  0.0588  0.0422  0.0466           1.260      0.0290      0.0152       0.4353
+      50.0  0.2528  0.0513  0.2684           0.942      0.1270      0.0273       0.2687
+     100.0  0.3205  0.0447  0.4179           0.767      0.1922      0.0155       0.2392
+
+16000 shots per circuit
+  delay us    leak    null   ideal  measured/ideal  fired leak  fired null  trivial 0_L
+       0.0  0.0082  0.0076  0.0000               -      0.0026      0.0018       0.8263
+      20.0  0.0509  0.0241  0.0466           1.091      0.0296      0.0112       0.4431
+      50.0  0.2396  0.0258  0.2684           0.893      0.1394      0.0053       0.2729
+     100.0  0.3222  0.0268  0.4179           0.771      0.1839      0.0076       0.2568
+
+  null: two runs of |0_L> at that delay, the floor a device run measures at zero leak
+  fired: the number of generators that fired, a statistic of the same record

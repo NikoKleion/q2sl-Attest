@@ -1,0 +1,36 @@
+the 8 circuits of job dao2md5r85ps73fen5lg as executed on ibm_fez, 52 cz each
+calibration read 2026-09-22, last updated 2026-09-22 10:00:30; the job ran 2026-09-20
+every gate, every scheduled idle and every readout carries its own qubit's numbers
+16000 shots per circuit, seeds spaced by more than the shot count
+
+the transpiler placed the circuits on 3 layouts:
+  0 us |0_L>, 0 us |1_L>
+  20 us |0_L>, 50 us |0_L>, 100 us |0_L>
+  20 us |1_L>, 50 us |1_L>, 100 us |1_L>
+so at every nonzero delay the two logical states ran on different qubits, and the measured
+distance holds a layout difference as well as a state difference
+
+the measured distance against the model of the same two circuits, and the model's split of it:
+  state, the two logical states on one layout (the twin of |0_L> on the |1_L> qubits), and
+  layout, one logical state on the two layouts
+
+  calibration: today
+  delay us  measured    model   ratio    state   layout  trivial meas  trivial model
+       0.0    0.0108   0.0097       -        -        -        0.7143         0.8184
+      20.0    0.0988   0.0613   1.612   0.0666   0.0648        0.3047         0.4290
+      50.0    0.2233   0.2403   0.929   0.2315   0.0637        0.2311         0.2734
+     100.0    0.2049   0.3164   0.647   0.3163   0.0571        0.2449         0.2602
+
+  calibration: job day
+  delay us  measured    model   ratio    state   layout  trivial meas  trivial model
+       0.0    0.0108   0.0113       -        -        -        0.7143         0.8179
+      20.0    0.0988   0.0472   2.094   0.0597   0.0530        0.3047         0.4669
+      50.0    0.2233   0.1921   1.162   0.1916   0.0651        0.2311         0.2949
+     100.0    0.2049   0.3235   0.633   0.3213   0.0336        0.2449         0.2545
+
+  per-syndrome agreement, max |P_model - P_measured| over the 64 outcomes and both states
+  delay us    today  job day
+       0.0   0.1041   0.1036
+      20.0   0.1243   0.1622
+      50.0   0.0456   0.0759
+     100.0   0.0270   0.0326

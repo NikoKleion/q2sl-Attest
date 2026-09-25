@@ -1,0 +1,7 @@
+held state with recovery, 300 rounds, device parameters
+  repetition   leak order 1: partial sum 5.4197e+00 nats at 300 rounds, attack bound 0.0022
+  code_4_1_2   leak order 2: partial sum 5.7669e-02 nats at 300 rounds, attack bound 0.4720
+  hamming_7    leak order 3: partial sum 3.1777e-07 nats at 300 rounds, attack bound 0.5000
+  re-preparation, repetition: rounds to 1 percent 251
+  Pauli control, max per-round TVD 0.00e+00
+  sums are partial sums at the stated round count

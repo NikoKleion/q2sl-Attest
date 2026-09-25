@@ -1,0 +1,18 @@
+coherent_diagonal(theta=0.3), population TVD by code
+  repetition   0.0000e+00
+  five_qubit   8.7224e-17
+  steane       9.3675e-17
+  code_4_1_2   3.1882e-01
+  hamming_7    7.6269e-03
+
+[[4,1,2]] scaling in theta
+  theta=0.05  TVD 9.9667e-03  TVD/theta^2 3.987
+  theta=0.10  TVD 3.9470e-02  TVD/theta^2 3.947
+  theta=0.20  TVD 1.5165e-01  TVD/theta^2 3.791
+  theta=0.30  TVD 3.1882e-01  TVD/theta^2 3.542
+
+Pauli controls on [[4,1,2]] (must be 0)
+  dephasing(0.1): 0.00e+00
+  depolarizing(0.1): 0.00e+00
+
+attack at theta=0.2: TVD 1.5165e-01, Chernoff 0.1645 nats, rounds to 1 percent 29

@@ -1,0 +1,18 @@
+code                       analytic order   AD population distance   match
+  3-qubit repetition                    1                        1   yes
+  5-qubit [[5,1,3]]                  None                        5   NO
+  Steane [[7,1,3]]                   None                        3   NO
+  [[4,1,2]]                             2                        2   yes
+  Hamming [[7,1,2]]                     3                        3   yes
+
+the coefficient of the leading term, leak / gamma^order at gamma=0.0001, and the number of
+minimal sets the order comes from
+  code                       order  coefficient  minimal sets
+  3-qubit repetition             1       2.9997             3
+  [[4,1,2]]                      2       3.9992             4
+  Hamming [[7,1,2]]              3       3.9988             4
+  Shor [[9,1,3]]                 3      26.9917            27
+  rotated surface [[9,1,3]]      3       6.9981             8
+
+  the coefficient is not the count: the surface code has eight minimal sets and a coefficient
+  of seven, and on other codes the two differ by a factor of two in both directions

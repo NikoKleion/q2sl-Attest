@@ -1,0 +1,32 @@
+standard codes, max |projector form - recovery-fidelity form| = 1.0e-15
+distance-3 codes, every single-qubit Pauli on 0_L, 1_L and a general state: max infidelity 4.4e-16
+
+amplitude damping and depolarizing at strength 0.01; slope of log value against log strength, 0.01 to 0.02
+logical error is the largest of 0_L, 1_L and +_L
+
+  code                        d    leak AD  slope  logical AD  slope  logical dep  slope
+  3-qubit repetition          1  2.970e-02   0.99   7.481e-03   1.00    1.973e-02   0.98
+  [[4,1,2]]                   2  3.920e-04   1.97   1.000e-02   1.00    1.333e-02   1.00
+  Hamming [[7,1,2]]           2  3.891e-06   2.96   7.795e-03   1.05    1.122e-02   1.14
+  5-qubit [[5,1,3]]           3  0.000e+00      -   1.856e-04   1.99    6.520e-04   1.97
+  Steane [[7,1,3]]            3  0.000e+00      -   5.172e-04   1.98    1.804e-03   1.95
+  Shor [[9,1,3]]              3  2.620e-05   2.96   1.095e-03   1.96    2.677e-03   1.94
+  rotated surface [[9,1,3]]   3  6.819e-06   2.96   8.795e-04   1.97    2.931e-03   1.93
+
+recovery from the built-in table against BP+OSD of ldpc, depolarizing 0.01
+  code                        d       table      BP+OSD   ratio
+  5-qubit [[5,1,3]]           3   6.520e-04           - not CSS
+  Steane [[7,1,3]]            3   1.804e-03   9.047e-04   0.501
+  Shor [[9,1,3]]              3   2.677e-03   1.153e-03   0.431
+  rotated surface [[9,1,3]]   3   2.931e-03   7.795e-04   0.266
+
+random errors on the d=5 rotated surface code, 200 of each weight, syndromes only
+  weight  decoder  corrected  logical  unexplained
+       1    table        200        0            0
+       1   BP+OSD        200        0            0
+       2    table          4        0          196
+       2   BP+OSD        200        0            0
+
+  unexplained: the correction leaves a syndrome behind, which the table does when it holds no
+  entry for what was measured
+

@@ -1,0 +1,7 @@
+# self-test: exact simulation must validate the analytic leak order on every standard code
+#       repetition: population     LEAKS  analytic-order  1  measured-slope  0.96  phase 2e-16  -> ok
+#       five_qubit: population protected  analytic-order  -  measured-slope     -  phase 1e-17  -> ok
+#           steane: population protected  analytic-order  -  measured-slope     -  phase 0e+00  -> ok
+#       code_4_1_2: population     LEAKS  analytic-order  2  measured-slope  1.93  phase 0e+00  -> ok
+#        hamming_7: population     LEAKS  analytic-order  3  measured-slope  2.90  phase 0e+00  -> ok
+# all standard codes pass: True

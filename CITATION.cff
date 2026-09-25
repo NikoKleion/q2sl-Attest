@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use q2sl attest, please cite it as below."
+title: "q2sl attest: Quantum Syndrome and Source Limits"
+abstract: >-
+  Bounds what an observer can learn from the output of a quantum device. For a stabilizer code: the
+  distance between the syndrome distributions of two logical states under noise that is not Pauli, its
+  order in the noise strength, the attack an observer of the records achieves, and estimates from measured
+  records. For a quantum random number generator: SP 800-90B min-entropy assessment, device attestation
+  and extraction.
+type: software
+authors:
+  - given-names: Nikolas
+    family-names: Klein
+version: 1.0.0
+license: Apache-2.0
+repository-code: "https://github.com/NikoKleion/q2sl-Attest"
+keywords:
+  - quantum error correction
+  - syndrome
+  - side channel
+  - amplitude damping
+  - random number generation
+  - min-entropy
+  - stabilizer codes

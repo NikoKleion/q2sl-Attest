@@ -1,0 +1,5 @@
+max pairwise syndrome TVD over 32 logical states
+code           depolarizing    dephasing   amp damping   coherent diag
+repetition         9.71e-17     0.00e+00     4.800e-01       0.000e+00
+code_4_1_2         1.27e-16     8.33e-17     1.024e-01       3.188e-01
+hamming_7          3.89e-16     2.64e-16     1.741e-02       7.627e-03

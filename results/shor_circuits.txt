@@ -1,0 +1,21 @@
+encoder output against the 0_L and 1_L state vectors: max 1 - |overlap| 3.3e-16
+Aer, 200 shots each: 56 of 56 circuits (no error and 27 single-qubit Paulis, both preps) give the predicted syndrome on every shot
+the six Z generators alone: 15 qubits, 20 two-qubit gates, against 17 and 32
+
+population leak at T1 133.19 us against the null floor, the mean TVD of two samples of 0_L
+statistics of one record: all eight generators, the six Z generators, the number that fired
+
+  statistic              delay us  gamma    leak   floor 4000  floor 16000
+  full syndrome (256)        20.0  0.139  0.0466       0.0580       0.0293
+  full syndrome (256)        50.0  0.313  0.2684       0.0860       0.0431
+  full syndrome (256)       100.0  0.528  0.4179       0.0963       0.0482
+
+  Z generators (64)          20.0  0.139  0.0466       0.0336       0.0173
+  Z generators (64)          50.0  0.313  0.2684       0.0451       0.0228
+  Z generators (64)         100.0  0.528  0.4179       0.0479       0.0240
+
+  number that fired (7)      20.0  0.139  0.0276       0.0140       0.0071
+  number that fired (7)      50.0  0.313  0.1591       0.0175       0.0086
+  number that fired (7)     100.0  0.528  0.2477       0.0168       0.0086
+
+  the X generators carry no population leak, so dropping them leaves the leak and lowers the floor
