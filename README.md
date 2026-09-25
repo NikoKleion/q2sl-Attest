@@ -35,9 +35,29 @@ carries information about the logical state. `syndrome_leakage` computes that de
 
 ## Sources
 
-`qrng_attest`, in [attest/](attest/), assesses the min-entropy of a random source under NIST SP 800-90B,
-attests a quantum random number generator from its device physics and readout calibration, and extracts
-uniform bits. It is also maintained as the standalone repository `NikoKleion/qrng-attest`.
+A random number generator's output can carry classical detector noise, crosstalk and drift alongside the
+entropy of its quantum source. `qrng_attest`, in [attest/](attest/), bounds the min-entropy that output
+holds and the number of uniform bits it can yield. It is also maintained as the standalone repository
+`NikoKleion/qrng-attest`.
+
+- The NIST SP 800-90B assessment: the IID track, the non-IID min-entropy estimators, the multi-bit
+  combination and the health tests. The six non-predictor estimators reproduce NIST's reference tool to
+  under 1e-9 bits on the official test vectors.
+- Device attestation: a min-entropy bound from the device's measured readout calibration, with the
+  calibration's statistical margin propagated, a worst-pair joint bound for correlated qubits, and drift
+  across captures.
+- Extraction of uniform bits by a Toeplitz hash under the leftover hash lemma, at a stated epsilon.
+- Sources from a Qiskit backend, a captured file, a live callback or a synthetic model, and the NIST SP
+  800-22 battery through the optional nistrng package.
+
+## Supporting packages
+
+- `entropy_fusion`: the residual min-entropy of a structured value given the likelihoods of several
+  sources, one of which can be a device read, with Shapley values over the sources.
+- `reconstruction`: likelihoods from a pattern model, a BP+OSD decoder on a simulated toric code device and
+  a seed model fused on one posterior, and the stabilizer Renyi entropy.
+- `suite`: a registry over the analyses with SARIF 2.1.0 output, a covert channel read from syndromes, and
+  a gate identity check by ZX-calculus.
 
 ## Hardware measurement
 
