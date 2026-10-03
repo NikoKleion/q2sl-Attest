@@ -16,6 +16,47 @@ syndrome record of a stabilizer code, and the output of a quantum random number 
 code, noise and decoder, or a stated sample and readout calibration, it returns the number. It is written
 in Python on numpy, with Qiskit for the circuits, backends and hardware runs.
 
+## Use
+
+| use | entry point | returns |
+|---|---|---|
+| a code under a noise channel | `q2sl assess <code>`, `expectations.population_leak(code, kraus)` | the total variation distance d between the syndrome records of the logical states 0_L and 1_L; an observer of one record identifies the state with probability (1 + d)/2 |
+| the order of d in the noise strength | `zchecks.leak_order(code)` | the leading power, or none for a code whose record does not depend on the state |
+| a decoder's output in place of the syndrome | `decoded.decoded_leak(code, kraus)` | d for the correction, its weight and the logical frame bit |
+| two measured count records | `estimate.leak_from_counts(c0, c1, n_outcomes)` | a permutation p-value, and the d a likelihood ratio achieves on held-out shots |
+| circuits for a device | `hardware.build_extraction_circuits(code, delays)` | Qiskit circuits that prepare 0_L and 1_L, idle, and measure one round of generators |
+| a sample of random bits or bytes | `qrng-attest capture <path>`, `estimators.min_entropy(samples)` | the SP 800-90B min-entropy per sample |
+| a random number source on a backend | `qrng-attest backend <name>` | a min-entropy bound net of readout error, and the number of uniform bits it yields |
+
+Not provided:
+
+- d for a code past about 14 qubits. At larger sizes the package returns the order and lower bounds, and a
+  lower bound near zero does not establish that a record is independent of the state.
+- Logical states other than 0_L and 1_L, apart from a search over a grid of 58 states for one round. Mixed
+  logical states. A code with several logical qubits is read one logical qubit at a time, in the basis the
+  construction picks.
+- Correlated noise, crosstalk, and population outside the computational states. Every channel acts on one
+  qubit.
+- Repeated rounds with measurement error. Many rounds take ideal measurement and a decoder that returns the
+  measured syndrome.
+- A nonzero d under Pauli noise. It is zero for every Pauli channel, so a Pauli simulation cannot show it.
+- Agreement of the gate-level model with a device. On the ibm_fez runs the measured d is 0.6 to 2.1 times
+  the model's.
+- For sources: a validation under CAVP or CMVP, a bound for a device whose readout calibration is not
+  trusted, symbols wider than 8 bits, and the restart tests of SP 800-90B.
+
+Read first:
+
+- [docs/syndromes/concepts.md](docs/syndromes/concepts.md) the quantities and the conventions for bits,
+  generators and logical states
+- [docs/syndromes/limits.md](docs/syndromes/limits.md) what each model assumes
+- [docs/syndromes/engines.md](docs/syndromes/engines.md) which engine returns which quantity, and at what
+  size
+- [docs/results.md](docs/results.md) every run with its control
+- [attest/README.md](attest/README.md) the assessment, the attestation and the certificate
+- Shen and Zhong, arXiv:2609.09334, for the observer and the order of the dependence; NIST SP 800-90B for
+  the assessment
+
 ## Syndromes
 
 Under a Pauli channel the syndrome distribution of a stabilizer code is the same for every encoded logical
