@@ -5,50 +5,62 @@
 **Quantum Syndrome and Source Limits**
 
 [![python](https://img.shields.io/badge/python-3.11%2B-30363D?style=flat-square)](https://www.python.org/)
-[![tests](https://img.shields.io/badge/tests-320%20passing-30363D?style=flat-square)](docs/testing.md)
+[![tests](https://img.shields.io/badge/tests-337-30363D?style=flat-square)](docs/testing.md)
 [![version](https://img.shields.io/badge/version-1.0-30363D?style=flat-square)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-Apache%202.0-30363D?style=flat-square)](LICENSE)
 
 </div>
 
 q2sl attest bounds what an observer can learn from the output of a quantum device, in two settings: the
-syndrome record of a stabilizer code, and the output of a quantum random number generator. It is written
-in Python on numpy, with Qiskit for circuits, backends and hardware runs.
+syndrome record of a stabilizer code, and the output of a quantum random number generator. For a stated
+code, noise and decoder, or a stated sample and readout calibration, it returns the number. It is written
+in Python on numpy, with Qiskit for the circuits, backends and hardware runs.
 
 ## Syndromes
 
 Under a Pauli channel the syndrome distribution of a stabilizer code is the same for every encoded logical
 state. Under a channel that is not Pauli, such as amplitude damping, it is not, and the syndrome record
-carries information about the logical state. `syndrome_leakage` computes that dependence. In this project
-"leakage" refers to this information, not to population leaving the computational states.
+carries information about the logical state. `syndrome_leakage` computes that dependence as the total
+variation distance between the records of two logical states, for an observer who sees the record and
+knows the code, the noise and the decoder, the setting Shen and Zhong study (arXiv:2609.09334). In this
+project "leakage" refers to this information, not to population leaving the computational states.
 
-- The distance between the syndrome distributions of two logical states, exactly up to about 14 qubits.
+- The distance between the syndrome distributions of two logical states under one single-qubit channel per
+  qubit, exactly up to about 14 qubits, for one round with ideal syndrome measurement or a flip rate per
+  syndrome bit.
 - The order of that distance in the noise strength, by enumeration and by integer programming, for codes
   up to the [[144,12,12]] bivariate bicycle code.
 - The L2 distance by tensor network contraction, a lower bound on the leak, for planar codes up to a
   distance 11 surface code.
-- Syndrome records sampled under T1 and T2 relaxation at any code size, and lower bounds read from them.
-- The likelihood-ratio test on syndrome records, the number of rounds an observer needs, and the logical
-  error after recovery.
-- Estimates from measured records, extraction circuits for any CSS code, a gate-level device model, Stim
-  export, and codes loaded from files, qecdb.org, qLDPC and ldpc.
+- Syndrome records sampled under T1 and T2 relaxation at any code size, with lower bounds read from them,
+  and the Z-check record exactly up to a distance 5 surface code.
+- The likelihood-ratio test on syndrome records, the number of rounds an observer needs with a decoder
+  that returns the measured syndrome, and the logical error after recovery.
+- The leak through a decoder's output: the correction, its weight, and the logical frame bit over the
+  representatives of the logical operator.
+- Estimates from measured records, by a permutation test and a likelihood ratio scored on held-out shots.
+- Qiskit circuits for any CSS code: |0_L> and |1_L> from the CSS encoder, an idle delay, and one round of
+  the selected generators on one ancilla each, with flag qubits as an option; the same round as Stim text
+  with detectors; and a gate-level model that runs the transpiled circuits under a backend's calibration.
+- Codes loaded from files, qecdb.org, qLDPC and ldpc.
 
 ## Sources
 
 A random number generator's output can carry classical detector noise, crosstalk and drift alongside the
 entropy of its quantum source. `qrng_attest`, in [attest/](attest/), bounds the min-entropy that output
-holds and the number of uniform bits it can yield. It is also maintained as the standalone repository
-`NikoKleion/qrng-attest`.
+holds and the number of uniform bits it can yield.
 
-- The NIST SP 800-90B assessment: the IID track, the non-IID min-entropy estimators, the multi-bit
-  combination and the health tests. The six non-predictor estimators reproduce NIST's reference tool to
-  under 1e-9 bits on the official test vectors.
-- Device attestation: a min-entropy bound from the device's measured readout calibration, with the
-  calibration's statistical margin propagated, a worst-pair joint bound for correlated qubits, and drift
-  across captures.
+- The NIST SP 800-90B assessment of bits or of symbols up to 8 bits wide: the IID track, the non-IID
+  min-entropy estimators, the multi-bit combination and the health tests. The assessment reproduces the
+  output NIST publishes for its reference tool on the eleven vectors of its repository to under 1e-9 bits,
+  which is not a validation under CAVP or CMVP.
+- Device attestation: a min-entropy bound from the device's measured readout calibration, taken as given,
+  with the calibration's statistical margin propagated, a worst-pair joint bound for correlated qubits,
+  and drift across captures.
 - Extraction of uniform bits by a Toeplitz hash under the leftover hash lemma, at a stated epsilon.
-- Sources from a Qiskit backend, a captured file, a live callback or a synthetic model, and the NIST SP
-  800-22 battery through the optional nistrng package.
+- Sources from a Qiskit backend, where a circuit prepares each qubit in |+> and measures it and circuits
+  that prepare |0> and |1> on the same qubits give the assignment matrix; from a captured file, a live
+  callback or a synthetic model; and the NIST SP 800-22 battery through the optional nistrng package.
 
 ## Supporting packages
 
@@ -92,12 +104,15 @@ python -m syndrome_leakage.figures
 ```
 
 ```python
-from syndrome_leakage import expectations as ex, zchecks
+from syndrome_leakage import decoded, expectations as ex, zchecks
 from syndrome_leakage.channels import amplitude_damping
+from syndrome_leakage.hardware import build_extraction_circuits
 
 code = ex.surface_code_3()
 leak, d0, d1 = ex.population_leak(code, amplitude_damping(0.1))
 order = zchecks.leak_order(code)["order"]
+views = decoded.decoded_leak(code, amplitude_damping(0.1))
+circuits, labels = build_extraction_circuits(code, [0.0, 20e-6], checks="z")
 ```
 
 ## Documentation

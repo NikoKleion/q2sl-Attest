@@ -75,6 +75,45 @@ def exact_distribution(code, p_reset, bit, statistic=None, max_terms=2 ** 22):
     return out
 
 
+def exact_z_distribution(code, p_reset, bit, max_terms=2 ** 26):
+    """P(s) over the Z syndromes of one logical state under the reset process, bit j of s for Z generator j, from the
+    characteristic function E[(-1)^(a.s)] = mean over codewords x of the product over q in x of (1 - 2 p_q [a.Hz_q])."""
+    from .expectations import walsh_hadamard
+    P = css_parts(code)
+    Hx, Hz, xl, n = P["Hx"], P["Hz"], P["xl"], code.n
+    mz = len(Hz)
+    span = np.unique(_mod2_matmul(((np.arange(2 ** len(Hx))[:, None] >> np.arange(len(Hx))) & 1), Hx), axis=0)
+    if len(span) * 2 ** mz > max_terms:
+        raise ValueError(f"{code.name}: {len(span)} codewords times 2^{mz} syndromes is too many")
+    X = (span.astype(np.uint8) ^ (bit * xl)).astype(np.float64)
+    T = _mod2_matmul((np.arange(2 ** mz)[:, None] >> np.arange(mz)) & 1, Hz).astype(np.float64)
+    f = 1.0 - 2.0 * np.broadcast_to(np.asarray(p_reset, float), (n,))
+    chi = np.exp((T * np.log(np.abs(np.where(f == 0, 1.0, f)))) @ X.T)
+    chi *= 1.0 - 2.0 * (((T * (f < 0)) @ X.T) % 2)
+    chi[((T * (f == 0)) @ X.T) > 0] = 0.0
+    d = np.clip(np.real(walsh_hadamard(chi.mean(axis=1))) / 2 ** mz, 0.0, None)
+    return d / d.sum()
+
+
+def least_weight_x(code):
+    """For every Z syndrome, the least weight of an X error that has it and one such error as a qubit mask, by a
+    breadth-first search over the syndromes."""
+    Hz = css_parts(code)["Hz"]
+    col = [int(sum(int(Hz[j, q]) << j for j in range(len(Hz)))) for q in range(code.n)]
+    weight, error = np.full(2 ** len(Hz), -1, np.int64), np.zeros(2 ** len(Hz), np.int64)
+    weight[0], frontier = 0, [0]
+    while frontier:
+        nxt = []
+        for s in frontier:
+            for q in range(code.n):
+                t = s ^ col[q]
+                if weight[t] < 0:
+                    weight[t], error[t] = weight[s] + 1, error[s] | (1 << q)
+                    nxt.append(t)
+        frontier = nxt
+    return weight, error
+
+
 def bposd(H, prior, max_iter=48, osd_order=7):
     """A syndrome -> error decoder from ldpc's BP+OSD (Roffe et al.), under ldpc 2 or ldpc 0.1."""
     import ldpc

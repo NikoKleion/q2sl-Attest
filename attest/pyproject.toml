@@ -27,8 +27,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/NikoKleion/qrng-attest"
-Issues = "https://github.com/NikoKleion/qrng-attest/issues"
+Homepage = "https://github.com/NikoKleion/q2sl-Attest"
+Issues = "https://github.com/NikoKleion/q2sl-Attest/issues"
 
 [project.optional-dependencies]
 qiskit = ["qiskit>=2.0"]

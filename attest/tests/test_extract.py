@@ -98,3 +98,12 @@ def test_attestation_exposes_an_extraction_plan():
     p = att.extraction_plan()
     assert abs(p.h_per_symbol - att.attested_min_entropy) < 1e-12
     assert p.n_input == 4000 * 2
+
+
+def test_output_length_is_the_leftover_hash_lemma():
+    # Tomamichel, Schaffner, Smith and Renner, arXiv:1002.2436, Lemma 1: Delta = 1/2 sqrt(2^(l - Hmin))
+    for n, h, eps in ((4096, 0.86, 2.0 ** -64), (100000, 0.5, 2.0 ** -32), (2000, 0.999, 1e-6)):
+        ell, k = ex.extractable_bits(n, h, eps), n * h
+        if ell > 0:
+            assert 0.5 * math.sqrt(2.0 ** (ell - k)) <= eps * (1 + 1e-9)
+        assert 0.5 * math.sqrt(2.0 ** (ell + 1 - k)) > eps

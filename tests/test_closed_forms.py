@@ -60,3 +60,13 @@ def test_generalized_amplitude_damping_p_swap():
         _, a0, a1 = population_leak(c, generalized_amplitude_damping(0.3, 0.8))
         _, b0, b1 = population_leak(c, generalized_amplitude_damping(0.3, 0.2))
         assert np.allclose(a0, b1, atol=1e-12) and np.allclose(a1, b0, atol=1e-12), name
+
+
+def test_values_published_by_shen_and_zhong():
+    # arXiv:2609.09334: the distance 3 rotated surface code at damping 1e-4, one round, 6.9981e-12; and eq. 2
+    # at one round, 1 - (1 - gamma)^n - gamma^n for the repetition code
+    from syndrome_leakage import expectations as ex
+    assert abs(ex.population_leak(ex.surface_code_3(), amplitude_damping(1e-4))[0] - 6.9981e-12) < 0.5e-16
+    for g in (0.2, 0.05, 1e-4):
+        leak = population_leak(STD["repetition"](), amplitude_damping(g))[0]
+        assert abs(leak - (1 - (1 - g) ** 3 - g ** 3)) < 1e-14, g

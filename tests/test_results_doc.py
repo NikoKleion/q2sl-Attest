@@ -52,3 +52,28 @@ def test_every_run_has_a_section():
     names = {f[:-4] for f in os.listdir(RESDIR) if f.endswith(".txt")}
     names -= {"hardware_ibm_fez", "hardware_analysis", "hardware_shor_analysis", "hardware_shor_pinned_analysis"}
     assert names <= set(sections())
+
+
+def test_every_table_is_well_formed():
+    # a header row is followed by its separator row, with the same number of columns, in every page
+    import glob
+    sep = re.compile(r"^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|\s*$")
+    cols = lambda line: len(line.replace(chr(92) + "|", "").strip().strip("|").split("|"))   # an escaped pipe is cell text
+    pages = glob.glob(os.path.join(ROOT, "docs", "**", "*.md"), recursive=True) + [os.path.join(ROOT, "README.md")]
+    seen = 0
+    for page in pages:
+        lines = open(page, encoding="utf-8").read().split("\n")
+        fenced = False
+        for i, line in enumerate(lines):
+            if line.startswith("```"):
+                fenced = not fenced
+            if fenced:
+                continue
+            where = f"{os.path.relpath(page, ROOT)}:{i + 1}"
+            if sep.match(line):
+                assert i > 0 and lines[i - 1].startswith("|") and cols(lines[i - 1]) == cols(line), where
+                seen += 1
+            elif line.startswith("|") and line.rstrip().endswith("|") and not (i > 0 and lines[i - 1].startswith("|")):
+                assert i + 1 < len(lines) and sep.match(lines[i + 1]), where
+            assert not re.match(r"^-{3,}\|", line), where
+    assert seen > 40

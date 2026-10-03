@@ -37,6 +37,8 @@ qecdb.org and runs only with `Q2SL_NETWORK=1`.
 - `test_gate_level.py`, `test_stim_export.py`, `test_extraction.py` the device model, the Stim text and the
   extraction circuits.
 - `test_multi_logical.py`, `test_rounds.py`, `test_protection.py` codes with k > 1, many rounds, recovery.
+- `test_decoded.py` the least weight decoder against every Pauli, the views against the syndrome leak, the
+  frame bit over representatives, the Shor closed form, and the pinned run's parity bit.
 - `test_load.py`, `test_qecdb.py`, `test_qldpc.py` codes from files, qecdb.org records and qLDPC objects.
 - `test_shor_hardware.py` the Shor circuits, the saved ibm_fez records, and the pinned run's records and
   circuits.

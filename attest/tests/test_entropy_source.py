@@ -72,11 +72,23 @@ def test_compression_short_stream_returns_none_not_crash():
     assert E.compression(np.zeros(6012, int), k=2) is not None
 
 
-def test_multibit_assessment_is_relabel_invariant():
-    # relabeling symbols must not change the assessment: word_size follows the alphabet, not raw values (regression)
+def test_multibit_bitstring_follows_the_samples_as_given():
+    # SP 800-90B section 3.1.3: L samples of n bits are one bitstring of n L bits, so a sample value changes the bits
     base = uniform(20000, k=4, seed=12)
-    a, _ = min_entropy(base)
-    b, _ = min_entropy(np.where(base == 3, 4, base))
+    moved = np.where(base == 3, 4, base)
+    a, pa = min_entropy(base)
+    b, pb = min_entropy(moved)
+    assert pa["word_size"] == 2.0 and pb["word_size"] == 3.0
+    assert abs(pa["H_original"] - pb["H_original"]) < 1e-9
+    assert pb["H_bitstring"] < pa["H_bitstring"] - 0.1
+    assert min_entropy(base, bits_per_symbol=3)[1]["word_size"] == 3.0
+
+
+def test_multibit_assessment_can_be_relabel_invariant():
+    # relabel_bits=True takes the bits of the relabelled symbols, so the labels do not enter
+    base = uniform(20000, k=4, seed=12)
+    a, _ = min_entropy(base, relabel_bits=True)
+    b, _ = min_entropy(np.where(base == 3, 4, base), relabel_bits=True)
     assert abs(a - b) < 1e-9
 
 
@@ -87,7 +99,7 @@ def test_predictor_zero_run_not_capped_at_one_for_k3():
 
 # ---------- regression tests ----------
 def test_regression_no_overflow_on_deterministic():
-    # _no_run_prob must not overflow on deterministic streams at large N
+    # the predictor estimate must not overflow on deterministic streams at large N
     for S in (np.zeros(100000, int), np.ones(100000, int), np.tile([0, 1], 50000),
               np.tile(np.array([0, 0, 1, 0, 1, 1, 1, 0]), 12500)):
         mn, est = min_entropy(S, k=2)
@@ -95,16 +107,19 @@ def test_regression_no_overflow_on_deterministic():
         assert all(v <= 1.0001 for v in est.values()), "no estimator may exceed log2(k)=1 bit"
 
 
-def test_regression_no_run_prob_bounded_no_overflow():
+def test_regression_run_function_is_a_log_probability():
+    # the log of the chance of no run of r correct predictions in n trials is at most zero and never overflows
+    from qrng_attest import predictors as P
     for args in [(0.5, 2, 100000), (0.99, 3, 100000), (0.5, 50000, 50000), (0.5, 17, 1000000)]:
-        v = E._no_run_prob(*args)
-        assert 0.0 <= v <= 1.0
+        v = P._run_function(*args)
+        assert v <= 1e-9 and not math.isnan(v)
 
 
-def test_regression_p_local_no_crash_across_run_lengths():
-    for r in (1, 6, 7, 100, 1000, 3000):
-        p = E._p_local(r, 100000)
-        assert 0.0 <= p <= 1.0
+def test_regression_prediction_estimate_across_run_lengths():
+    from qrng_attest import predictors as P
+    for r in (0, 1, 6, 7, 100, 1000, 3000):
+        h = P.prediction_estimate(50000, 100000, r, 2)
+        assert 0.0 <= h <= 1.0
 
 
 def test_regression_out_of_range_value_no_indexerror():

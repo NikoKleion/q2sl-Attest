@@ -36,6 +36,5 @@ cd attest && python -m pytest tests -rs
 - Code or data taken from another project is credited in NOTICE with its licence, and at the point where
   it is used.
 - Code carries one-line headers and markers. Methods, derivations and usage belong in `docs/`.
-- Changes under `attest/` are pushed to the standalone repository with `scripts/sync_attest.sh`.
 - Hardware runs are never part of the test suite. Their records are saved under `results/` and the tests
   read the saved records.

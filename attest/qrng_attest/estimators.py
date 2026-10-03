@@ -2,6 +2,8 @@
 import math
 import numpy as np
 
+from . import predictors as _P
+
 Z = 2.5758293035489008
 
 
@@ -74,22 +76,76 @@ def markov(S, k=None, path_len=128):
 
 
 # 6.3.5 / 6.3.6 t-Tuple and LRS
+def _prefix_ranks(S):
+    # ranks[m][i] orders the substrings of length 2^m by position i; the last level orders the suffixes
+    n = len(S)
+    rank = np.unique(S, return_inverse=True)[1].astype(np.int64)
+    ranks = [rank.astype(np.int32)]
+    step = 1
+    while int(rank.max()) < n - 1 and step < n:
+        nxt = np.zeros(n, np.int64)
+        nxt[:n - step] = rank[step:] + 1
+        rank = np.unique(rank * (n + 1) + nxt, return_inverse=True)[1].astype(np.int64)
+        ranks.append(rank.astype(np.int32))
+        step *= 2
+    return ranks
+
+
+def _common_prefixes(ranks, n):
+    # length of the common prefix of each pair of suffixes adjacent in sorted order
+    order = np.argsort(ranks[-1], kind="stable")
+    a, b = order[:-1].astype(np.int64), order[1:].astype(np.int64)
+    lcp = np.zeros(n - 1, np.int64)
+    for m in range(len(ranks) - 1, -1, -1):
+        inside = np.flatnonzero((a < n) & (b < n))
+        same = inside[ranks[m][a[inside]] == ranks[m][b[inside]]]
+        lcp[same] += 1 << m
+        a[same] += 1 << m
+        b[same] += 1 << m
+    return lcp
+
+
+_DENSE_LEVELS = 24
+
+
 def _tuple_profile(S, k):
     # for each tuple length, the most common count and the collision count. Shared by t_tuple and lrs.
+    S = np.asarray(S)
     n = len(S)
-    tmax = min(n - 1, max(1, int(62.0 / math.log2(k)) if k > 1 else 62))
-    prof = []
-    keys = S.astype(np.int64)
-    for t in range(1, tmax + 1):
-        length = n - t + 1
-        if length <= 0:
-            break
-        if t > 1:
-            keys = keys[:length] * k + S[t - 1:t - 1 + length]
-        _, counts = np.unique(keys, return_counts=True)
-        prof.append((t, int(counts.max()), float(np.sum(counts * (counts - 1) / 2.0)), length))
-        if counts.max() < 2:
-            break
+    if n < 2:
+        return [(1, n, 0.0, n)] if n else []
+    lcp = _common_prefixes(_prefix_ranks(S), n)
+    v = int(lcp.max())
+    most = np.ones(v + 2, np.int64)
+    pairs = [0] * (v + 2)
+    dense = min(v, _DENSE_LEVELS)
+    for t in range(1, dense + 1):
+        edge = np.diff(np.concatenate(([0], (lcp >= t).astype(np.int8), [0])))
+        runs = np.flatnonzero(edge == -1) - np.flatnonzero(edge == 1)
+        if runs.size:
+            most[t] = int(runs.max()) + 1
+            pairs[t] = int((runs * (runs + 1) // 2).sum())
+    if v > dense:
+        # above the dense levels, join neighbouring groups of suffixes from the longest common prefix down
+        where = np.flatnonzero(lcp > dense)
+        where = where[np.argsort(-lcp[where], kind="stable")]
+        depth = lcp[where].tolist()
+        where = where.tolist()
+        first, last = {}, {}
+        biggest, joined, i = 1, 0, 0
+        for t in range(v, dense, -1):
+            while i < len(where) and depth[i] >= t:
+                j = where[i]
+                lo, hi = first.get(j, j), last.get(j + 1, j + 1)
+                joined += (j - lo + 1) * (hi - j)
+                if hi - lo + 1 > biggest:
+                    biggest = hi - lo + 1
+                first[hi], last[lo] = lo, hi
+                i += 1
+            most[t], pairs[t] = biggest, joined
+    prof = [(t, int(most[t]), float(pairs[t]), n - t + 1) for t in range(1, v + 1)]
+    if v + 1 <= n:
+        prof.append((v + 1, 1, 0.0, n - v))
     return prof
 
 
@@ -198,238 +254,37 @@ def compression(S, k=2):
 
 
 # 6.3.7-6.3.10 predictor framework
-def _longest_true_run(mask):
-    best = cur = 0
-    for m in mask:
-        cur = cur + 1 if m else 0
-        if cur > best:
-            best = cur
-    return best
-
-
-def _no_run_prob(p, r, n):
-    # probability of no run of r correct predictions in n trials at rate p. Computed in log space.
-    if r <= 0 or n <= 0:
-        return 0.0
-    if r > n:
-        return 1.0
-    q = 1.0 - p
-    if q <= 0.0:
-        return 0.0
-    if p <= 0.0:
-        return 1.0
-    lrp = r * math.log(p)
-    lo, hi = 1.0 + 1e-15, 1.0 / p
-    for _ in range(100):
-        x = 0.5 * (lo + hi)
-        lt = math.log(q) + lrp + (r + 1) * math.log(x)
-        term = math.exp(lt) if lt < 700.0 else math.inf
-        if x - 1.0 - term > 0.0:
-            hi = x
-        else:
-            lo = x
-    x = 0.5 * (lo + hi)
-    denom = (r + 1 - r * x) * q
-    numer = 1.0 - p * x
-    if abs(denom) < 1e-300 or x <= 0.0:
-        return 0.0
-    logv = math.log(abs(numer)) - math.log(abs(denom)) - (n + 1) * math.log(x)
-    if logv < -700.0:
-        return 0.0
-    val = math.exp(logv)
-    if (numer < 0) != (denom < 0):
-        val = -val
-    return min(max(val, 0.0), 1.0)
-
-
-def _p_local(r, n):
-    # find the rate p where the chance of no run of length r in n trials is 0.99.
-    if n <= 0:
-        return 0.5
-    if r <= 0:
-        return 0.0
-    if r >= n:
-        return 1.0 - 1e-9
-    lo, hi = 1e-9, 1.0 - 1e-9
-    for _ in range(60):
-        mid = 0.5 * (lo + hi)
-        if _no_run_prob(mid, r, n) > 0.99:
-            lo = mid
-        else:
-            hi = mid
-    return 0.5 * (lo + hi)
-
-
 def _predictor_entropy(correct, k=2):
+    # min-entropy from a record of which predictions were correct
     correct = np.asarray(correct, bool)
-    N = len(correct); C = int(correct.sum())
-    if N == 0:
+    n = len(correct)
+    if n < 2:
         return math.log2(k)
-    if C == N:
-        return 0.0
-    pg_b = (1.0 - 0.01 ** (1.0 / N)) if C == 0 else _upper_bound_p(C / N, N)
-    if pg_b >= 1.0:
-        return 0.0
-    p = max(pg_b, _p_local(_longest_true_run(correct), N))
-    p = min(max(p, 1.0 / k), 1.0)
-    return _hmin(p)
-
-
-def _ensemble_from_hits(hits):
-    # combine sub-predictors by following the one with the most correct predictions so far.
-    T, M = hits.shape
-    scores = np.zeros(M, np.int64)
-    correct = np.empty(T, bool)
-    for t in range(T):
-        correct[t] = hits[t, int(np.argmax(scores))]
-        scores += hits[t]
-    return correct
-
-
-_MCW_WINDOWS = [63, 255, 1023, 4095]
+    best = run = 0
+    for hit in correct:
+        run = run + 1 if hit else 0
+        if run > best:
+            best = run
+    return _P.prediction_estimate(int(correct.sum()), n, best, k)
 
 
 def multimcw(S, k=2):
-    n = len(S)
-    if n < 2:
-        return math.log2(k) if k > 1 else 0.0
-    if k == 2:
-        idx = np.arange(n)
-        pref = np.concatenate([[0], np.cumsum(S)])
-        hits = np.zeros((n, len(_MCW_WINDOWS)), bool)
-        for wi, w in enumerate(_MCW_WINDOWS):
-            lo = np.maximum(0, idx - w)
-            ones = pref[idx] - pref[lo]
-            size = np.minimum(idx, w)
-            pred = (2 * ones > size).astype(int)
-            hits[1:, wi] = (pred == S)[1:]
-        return _predictor_entropy(_ensemble_from_hits(hits[1:]), k=2)
-    Sl = S.tolist()
-    hits = np.zeros((n, len(_MCW_WINDOWS)), bool)
-    for wi, w in enumerate(_MCW_WINDOWS):
-        count = np.zeros(k, np.int64)
-        for i in range(1, n):
-            count[Sl[i - 1]] += 1
-            if i - 1 - w >= 0:
-                count[Sl[i - 1 - w]] -= 1
-            hits[i, wi] = (int(count.argmax()) == Sl[i])
-    return _predictor_entropy(_ensemble_from_hits(hits[1:]), k=k)
+    return _P.estimate("multimcw", S, k)
 
 
-def lag(S, k=None, D=128):
-    k = k or int(S.max()) + 1
-    n = len(S)
-    if n <= 1:
-        return math.log2(k)
-    D = min(D, n - 1)
-    hits = np.zeros((n, D), bool)
-    for d in range(1, D + 1):
-        hits[d:, d - 1] = (S[d:] == S[:-d])
-    return _predictor_entropy(_ensemble_from_hits(hits[1:]), k=k)
+def lag(S, k=None):
+    S = np.asarray(S)
+    return _P.estimate("lag", S, k or int(S.max()) + 1)
 
 
-def multimmc(S, k=2, D=16):
-    n = len(S)
-    if k == 2:
-        models = [dict() for _ in range(D)]
-        ctx = [0] * D; mask = [(1 << d) - 1 for d in range(1, D + 1)]
-        scores = np.zeros(D, np.int64)
-        correct = np.zeros(n, bool)
-        for i in range(n):
-            if i > 0:
-                preds = np.full(D, -1)
-                for d in range(1, D + 1):
-                    if i >= d:
-                        c = models[d - 1].get(ctx[d - 1])
-                        if c is not None:
-                            preds[d - 1] = 0 if c[0] >= c[1] else 1
-                correct[i] = (preds[int(np.argmax(scores))] == S[i])
-                scores += (preds == S[i]).astype(np.int64)
-                for d in range(1, D + 1):
-                    if i >= d:
-                        c = models[d - 1].get(ctx[d - 1])
-                        if c is None:
-                            c = [0, 0]; models[d - 1][ctx[d - 1]] = c
-                        c[int(S[i])] += 1
-            b = int(S[i])
-            for d in range(D):
-                ctx[d] = ((ctx[d] << 1) | b) & mask[d]
-        return _predictor_entropy(correct[1:])
-    Sl = S.tolist()
-    models = [dict() for _ in range(D)]
-    scores = np.zeros(D, np.int64)
-    correct = np.zeros(n, bool)
-    for i in range(n):
-        if i > 0:
-            preds = [-1] * D
-            for d in range(1, D + 1):
-                if i >= d:
-                    c = models[d - 1].get(tuple(Sl[i - d:i]))
-                    if c:
-                        preds[d - 1] = max(sorted(c), key=c.get)
-            best = int(np.argmax(scores))
-            correct[i] = preds[best] == Sl[i] if preds[best] >= 0 else False
-            for d in range(D):
-                if preds[d] == Sl[i]:
-                    scores[d] += 1
-            for d in range(1, D + 1):
-                if i >= d:
-                    key = tuple(Sl[i - d:i])
-                    c = models[d - 1].get(key)
-                    if c is None:
-                        c = {}; models[d - 1][key] = c
-                    c[Sl[i]] = c.get(Sl[i], 0) + 1
-    return _predictor_entropy(correct[1:], k=k)
+def multimmc(S, k=2):
+    return _P.estimate("multimmc", S, k)
 
 
-def lz78y(S, k=2, B=16, maxdict=65536):
-    n = len(S)
-    if k == 2:
-        D = [dict() for _ in range(B)]
-        ctx = [0] * B; mask = [(1 << (L + 1)) - 1 for L in range(B)]
-        correct = np.zeros(n, bool)
-        for i in range(n):
-            if i > B:
-                pred = -1
-                for L in range(1, B + 1):
-                    c = D[L - 1].get(ctx[L - 1])
-                    if c is not None and (c[0] + c[1]) > 0:
-                        pred = 0 if c[0] >= c[1] else 1
-                correct[i] = (pred == S[i]) if pred >= 0 else False
-                for L in range(1, B + 1):
-                    c = D[L - 1].get(ctx[L - 1])
-                    if c is None:
-                        if len(D[L - 1]) >= maxdict:
-                            continue
-                        c = [0, 0]; D[L - 1][ctx[L - 1]] = c
-                    c[int(S[i])] += 1
-            b = int(S[i])
-            for L in range(B):
-                ctx[L] = ((ctx[L] << 1) | b) & mask[L]
-        return _predictor_entropy(correct[B + 1:])
-    Sl = S.tolist()
-    Dd = [dict() for _ in range(B)]
-    correct = np.zeros(n, bool)
-    for i in range(n):
-        if i > B:
-            pred = -1
-            for L in range(1, B + 1):
-                c = Dd[L - 1].get(tuple(Sl[i - L:i]))
-                if c:
-                    pred = max(sorted(c), key=c.get)
-            correct[i] = (pred == Sl[i]) if pred >= 0 else False
-            for L in range(1, B + 1):
-                key = tuple(Sl[i - L:i])
-                c = Dd[L - 1].get(key)
-                if c is None:
-                    if len(Dd[L - 1]) >= maxdict:
-                        continue
-                    c = {}; Dd[L - 1][key] = c
-                c[Sl[i]] = c.get(Sl[i], 0) + 1
-    return _predictor_entropy(correct[B + 1:], k=k)
+def lz78y(S, k=2):
+    return _P.estimate("lz78y", S, k)
 
 
-# estimator suites and the multi-bit assessment
 def all_estimators(S, k=None, include_predictors=True):
     # run every estimator that applies to alphabet size k. Collision, Markov, and Compression are binary
     S = np.asarray(S).astype(int)
@@ -458,7 +313,7 @@ def _to_bits(sym, word):
     return ((sym[:, None] >> shifts[None, :]) & 1).reshape(-1).astype(int)
 
 
-def min_entropy(S, k=None, include_predictors=True):
+def min_entropy(S, k=None, include_predictors=True, bits_per_symbol=None, relabel_bits=False):
     # main entry point. Binary sources are assessed directly. Multi-bit sources are assessed as symbols
     S = np.asarray(S).astype(int)
     if S.size and S.min() < 0:
@@ -470,9 +325,16 @@ def min_entropy(S, k=None, include_predictors=True):
         est = all_estimators(sym, 2, include_predictors)
         return (float(min(est.values())) if est else float("nan")), est
     sym = np.searchsorted(vals, S)
-    word = max(1, (alph - 1).bit_length())
     lit = all_estimators(sym, alph, include_predictors)
-    bits = _to_bits(sym, word)
+    if relabel_bits:
+        word = max(1, (alph - 1).bit_length())
+        bits = _to_bits(sym, word)
+    else:
+        # the bits of the samples as given, SP 800-90B section 3.1.3
+        word = int(bits_per_symbol or max(1, int(S.max()).bit_length()))
+        if int(S.max()) >> word:
+            raise ValueError(f"a sample does not fit in {word} bits")
+        bits = _to_bits(S, word)
     bit = all_estimators(bits, 2, include_predictors)
     h_original = float(min(lit.values()))
     h_bitstring = float(min(bit.values()))

@@ -4,10 +4,9 @@ These files are unmodified copies from NIST's reference implementation of SP 800
 <https://github.com/usnistgov/SP800-90B_EntropyAssessment>.
 
 - `rand1_short.bin`, `rand4_short.bin`, `rand8_short.bin` come from its `bin/` directory.
-- `rand4_short.res`, `rand8_short.res` come from its `cpp/selftest/refdata/` directory and hold the
-  reference output that directory publishes for those inputs. Line endings are the only difference.
-
-The reference values for `rand1_short` are held in `tests/test_nist_kat.py` rather than as a file.
+- `rand1_short.res`, `rand4_short.res`, `rand8_short.res` come from its `cpp/selftest/refdata/` directory and
+  hold the reference output that directory publishes for those inputs. Line endings are the only
+  difference. `tests/test_nist_kat.py` reads its expected values from them.
 
 NIST-developed software is provided by NIST as a public service and, as a work of the United States
 Government, is not subject to copyright protection in the United States (17 U.S.C. 105). It is provided

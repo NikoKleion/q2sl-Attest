@@ -7,7 +7,7 @@
 **Entropy assessment and device attestation for quantum random number generation on Qiskit backends**
 
 [![python](https://img.shields.io/badge/python-3.11%2B-30363D?style=flat-square)](https://www.python.org/)
-[![tests](https://img.shields.io/badge/tests-105-30363D?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-107-30363D?style=flat-square)](tests/)
 [![version](https://img.shields.io/badge/version-0.1.0-30363D?style=flat-square)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-Apache%202.0-30363D?style=flat-square)](LICENSE)
 
@@ -73,9 +73,11 @@ Figures from `python -m qrng_attest.figures`, which runs the same sweeps that wr
 
 ## Checks
 
-The six non-predictor SP 800-90B estimators reproduce NIST's reference tool to under 1e-9 bits on the
-official test vectors. The IID track, the attestation, the qubit selection, and the extractor have unit
-tests over synthetic data and captured files.
+The SP 800-90B non-IID assessment reproduces the output NIST publishes for its reference tool on the eleven
+vectors of its repository to under 1e-9 bits: every estimator of both tracks, `H_original`, `H_bitstring`
+and the assessed min-entropy. The three short vectors are in the test suite; `scripts/nist_vectors.py` runs
+all eleven from a clone of NIST's repository. The IID track, the attestation, the qubit selection, and the
+extractor have unit tests over synthetic data and captured files.
 
 The backend path runs on IBM ibm_marrakesh (2000 shots, two qubits) through qiskit-ibm-runtime with the
 SamplerV2 primitive: per-qubit bit order, readout self-calibration from |0> and |1> preparations, result
@@ -87,14 +89,14 @@ path.
 
 ## Features
 
-- SP 800-90B assessment: the section 6.3 non-IID estimator suite and the section 5 IID track. The six
-  non-predictor estimators reproduce NIST's `ea_non_iid` to under 1e-9 bits on the official `rand1_short`,
-  `rand4_short`, and `rand8_short` vectors; on `rand1_short` the four predictors agree to under 0.02,
-  and above NIST's values. The assessment is a minimum over the estimators, so dropping the predictors
-  can only raise the reported entropy. `certify_source` and `certify_backend` default to
-  `include_predictors=False`; `include_predictors=True` gives the bound over the whole suite, which is at
-  or below it. Multi-bit sources are
-  assessed on both the literal symbols and the bitstring and combined by the reference rule.
+- SP 800-90B assessment: the section 6.3 non-IID estimator suite and the section 5 IID track. The ten
+  estimators reproduce NIST's `ea_non_iid` to under 1e-9 bits on its reference vectors. The four predictors
+  are translated from the reference implementation and give its counts of correct predictions. The
+  assessment is a minimum over the estimators, so dropping the predictors can only raise the reported
+  entropy. `certify_source` and `certify_backend` default to `include_predictors=False`;
+  `include_predictors=True` gives the bound over the whole suite, which is at or below it. Multi-bit sources
+  are assessed on the literal symbols and on the bitstring of the samples as given, and combined by the
+  reference rule; `bits_per_symbol` states the sample width when the largest value does not show it.
 - Device attestation: Bloch-vector min-entropy, readout deconvolution through the assignment matrix,
   cross-qubit correlation, drift, and the SP 800-90B health tests. Bounds are one-sided 99 percent
   confidence bounds that include the sampling uncertainty of the data.
@@ -110,10 +112,10 @@ path.
 ## Install
 
 ```bash
-pip install git+https://github.com/NikoKleion/qrng-attest
+pip install "git+https://github.com/NikoKleion/q2sl-Attest#subdirectory=attest"
 ```
 
-Not on PyPI. Install from the repository, or from a clone with `pip install -e .`.
+Not on PyPI. Install from the repository, or from a clone with `pip install -e .` in this folder.
 
 Requires Python 3.11+ and numpy. Qiskit is optional and only needed to certify a backend:
 
@@ -184,16 +186,18 @@ clean data on the fixed pass threshold.
 - Li et al., Sci. Rep. 11, 23873 (2021): quantum entropy credited from measured readout error rates.
 - Bravyi et al., Phys. Rev. A 103, 042605 (2021): the assignment (calibration) matrix of measurement error
   mitigation.
-- Impagliazzo, Levin and Luby, STOC 1989: the leftover hash lemma. Krawczyk, CRYPTO 1994: Toeplitz hashing.
+- Impagliazzo, Levin and Luby, STOC 1989: the leftover hash lemma. Tomamichel, Schaffner, Smith and Renner,
+  arXiv:1002.2436, Lemma 1: the form that sets the output length. Krawczyk, CRYPTO 1994: Toeplitz hashing.
 - Frauchiger, Renner and Troyer, arXiv:1311.4547: randomness extraction from realistic quantum devices with
   two-universal hashing.
 - NIST SP 800-22 rev 1a (2010): the statistical test suite. Pasqualini,
   [NistRng](https://github.com/InsaneMonster/NistRng) (BSD-3): the implementation `sp800_22` calls.
 - Pelofske, arXiv:2307.02573: NIST randomness tests applied to quantum annealer output.
 
-## Hardware scripts
+## Scripts
 
-`scripts/` holds the IBM workflow, run from the repository root. `setup_account.py` saves credentials
+`scripts/nist_vectors.py` compares the assessment with NIST's reference output. The rest of `scripts/` holds
+the IBM workflow, run from the repository root. `setup_account.py` saves credentials
 from a local file, so the token is never typed on a command line. `run_hardware.py` certifies one small
 job, with `--dry-run` on a local fake device, which uses no QPU time. `submit_job.py` queues a job and returns, and
 `poll_job.py` or `wait_job.py` picks the result up afterward.

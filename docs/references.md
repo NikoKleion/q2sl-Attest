@@ -22,7 +22,13 @@ present.
   relaxation channels.
 - Kretschmann, Kribs and Spekkens, arXiv:0711.3438: private and correctable subsystems.
 - Cover and Thomas, Elements of Information Theory, section 11.9: the Chernoff information.
+- Chernoff, Ann. Math. Statist. 23, 493 (1952): the least sum of the two error probabilities over n
+  observations behaves as rho^n.
 - Neyman and Pearson, Phil. Trans. R. Soc. A 231, 289 (1933): the likelihood-ratio test.
+- Fuchs and van de Graaf, IEEE Trans. Inf. Theory 45, 1216 (1999), arXiv:quant-ph/9712042: the error of
+  the best guess between two distributions is 1/2 - K/2, with K their Kolmogorov distance (Proposition 2).
+- Hastad, Impagliazzo, Levin and Luby, SIAM J. Comput. 28, 1364 (1999): the statistical distance does not
+  increase under a function (Proposition 2.2).
 - Wagner, Kampermann, Bruss and Kliesch, Quantum 6, 809 (2022), arXiv:2107.14252: stabilizer expectations
   under a Pauli channel in terms of the Pauli error distribution (eq. 40).
 - Kobori and Todo, Phys. Rev. A (2025), arXiv:2406.08981: syndrome probabilities from stabilizer
@@ -32,6 +38,12 @@ present.
 - Hu, Liang and Calderbank, arXiv:2109.13481: syndrome probabilities under a diagonal unitary, and the
   condition for them to be independent of the encoded state.
 - Shukla, Browne and Nishio, arXiv:2607.12174: syndrome data as a decoder side channel.
+- Shen and Zhong, arXiv:2609.09334: the syndrome and decoder record of a surface-code memory as a channel
+  from the logical input; under amplitude damping no term of the distance between |0_L> and |1_L> below
+  order gamma^dZ (Proposition 1), the repetition code in closed form (eq. 2), and exact values for four
+  codes.
+- Doku, Szefer and Smith, arXiv:2609.12145: decoder timing as a side channel that exposes the number of
+  detectors that fire.
 - Kitaev, Ann. Phys. 303, 2 (2003): the toric code.
 - Shor, Phys. Rev. A 52, R2493 (1995): the [[9,1,3]] code.
 - Gidney, Quantum 5, 497 (2021), arXiv:2103.02202: Stim; the definition of a detector (section 5.6) and
@@ -48,13 +60,12 @@ present.
 - Chao and Reichardt, PRX Quantum 1, 010302 (2020), arXiv:1912.09549: flags at arbitrary distance, d of
   them for a distance-d code.
 - Roffe, White, Burton and Campbell, Phys. Rev. Research 2, 043423 (2020), arXiv:2005.07016: BP+OSD and the
-  bposd package, whose `css_code.compute_logicals` sets the logical-operator convention read here.
+  bposd and ldpc packages; `css_code.compute_logicals` sets the logical-operator convention read here.
 - Mithra, QECops v2.5 (2026), doi:10.5281/zenodo.19410365, MIT licensed,
   <https://github.com/JitheshMithra/QECops>: the Shor-code syndrome-extraction circuit layout ported
   in `hardware.build_shor_circuits`, and the quenched per-qubit noise model that the `disorder` run
   uses. See [NOTICE](../NOTICE).
 - Panteleev and Kalachev, Quantum 5, 585 (2021): BP+OSD decoding.
-- Roffe, White, Burton and Campbell, Phys. Rev. Research 2, 043423 (2020): BP+OSD and the ldpc package.
 - Leone, Oliviero and Hamma, Phys. Rev. Lett. 128, 050402 (2022): stabilizer Renyi entropy.
 - Wang, Harrington and Preskill, Ann. Phys. 303, 31 (2003): the toric code threshold under bit flips.
 - Coecke and Duncan, New J. Phys. 13, 043016 (2011): ZX-calculus.

@@ -963,18 +963,30 @@ def tensor_network():
              ex.surface_code_3(), t2.with_logical(0), t2.with_logical(1)]
     theta = 0.3
     xrot = [np.cos(theta) * np.eye(2) - 1j * np.sin(theta) * np.array([[0, 1], [1, 0]])]
+    damped = [k @ a for a in amplitude_damping(0.2) for k in xrot]
     worst = 0.0
     print("against the exact engine, L2 distance at amplitude damping 0.05")
     print(f"  {'code':30} {'exact':>12} {'contracted':>12}")
     for code in small:
-        for K in (amplitude_damping(0.2), amplitude_damping(0.05), xrot):
+        for K in (amplitude_damping(0.2), amplitude_damping(0.05)):
             e, t = exact_l2(code, K)[0], tn.l2_leak(code, K)["l2"]
-            worst = max(worst, abs(t - e) / e if e > 1e-12 else abs(t - e))
+            worst = max(worst, abs(t - e) / e)
         e, t = exact_l2(code, amplitude_damping(0.05))[0], tn.l2_leak(code, amplitude_damping(0.05))["l2"]
         print(f"  {code.name:30} {e:12.6e} {t:12.6e}")
-    print(f"  every code at damping 0.2 and 0.05 and under a coherent X rotation of {theta} agrees to 1e-12: "
-          f"{worst < 1e-12}")
+    print(f"  every code at damping 0.2 and 0.05 agrees to 1e-12: {worst < 1e-12}")
     print(f"  a Pauli channel gives {tn.l2_leak(_codes.shor_code(), depolarizing(0.1))['l2']:.1f} on Shor")
+    print()
+    # channels that move X parts take the network with separate X variables
+    worst, zero = 0.0, 0.0
+    print(f"the general network, amplitude damping 0.2 followed by a coherent X rotation of {theta}")
+    print(f"  {'code':30} {'exact':>12} {'contracted':>12}")
+    for code in small:
+        zero = max(zero, exact_l2(code, xrot)[0], tn.l2_leak(code, xrot)["l2"])
+        e, t = exact_l2(code, damped)[0], tn.l2_leak(code, damped)["l2"]
+        worst = max(worst, abs(t - e) / e)
+        print(f"  {code.name:30} {e:12.6e} {t:12.6e}")
+    print(f"  every code agrees to 1e-12: {worst < 1e-12}")
+    print(f"  the rotation alone gives zero in both engines, below 1e-15: {zero < 1e-15}")
     print()
 
     code = STD["hamming_7"]()
@@ -1221,13 +1233,196 @@ def z_checks():
               f"{pt['p_value']:6.3f} {ad['distance_corrected']:9.5f}")
 
 
+def decoded(gammas=(0.2, 0.05), low=(0.005, 0.01)):
+    # the leak an observer keeps when it sees a decoder's output in place of the syndrome record
+    import json
+    import os
+    from . import decoded as dc
+    from . import estimate as es
+    from . import expectations as ex
+    from . import protection as pr
+    from . import rounds as rd
+    from .hardware import shor_code
+    leaky = [STD[n]() for n in ("repetition", "code_4_1_2", "hamming_7")] + [shor_code(), ex.surface_code_3()]
+    quiet = [STD[n]() for n in ("five_qubit", "steane")]
+    makers = (("single-qubit table", pr.table_decoder), ("coset", rd.coset_decoder),
+              ("least weight", dc.min_weight_decoder))
+    decs = {c.name: {name: make(c) for name, make in makers} for c in leaky + quiet}
+    labels = {c.name: {name: dc.view_labels(c, d) for name, d in decs[c.name].items()} for c in leaky + quiet}
+    share = lambda v, leak: f"{v / leak:8.4f}" if leak > 1e-14 else f"{'-':>8}"
+
+    print("1. Controls")
+    print()
+    worst_pauli = worst_excess = 0.0
+    for c in leaky + quiet:
+        _, p0, p1 = ex.population_leak(c, depolarizing(0.1))
+        for g in gammas:
+            leak, d0, d1 = ex.population_leak(c, amplitude_damping(g))
+            for lab in labels[c.name].values():
+                worst_pauli = max(worst_pauli, max(dc.view_leaks(p0, p1, lab).values()))
+                worst_excess = max(worst_excess, max(dc.view_leaks(d0, d1, lab).values()) - leak)
+    complete = {name: all(rd.is_complete(c, decs[c.name][name]) for c in leaky + quiet) for name, _ in makers}
+    distinct = all(len(set(labels[c.name][name]["correction"])) == 2 ** len(c.stab_strings)
+                   for c in leaky + quiet for name in ("coset", "least weight"))
+    print(f"   depolarizing 0.1, {len(leaky + quiet)} codes, three decoders: largest value of any view {worst_pauli:.1e}")
+    print(f"   amplitude damping: largest excess of any view over the syndrome leak {worst_excess:.1e}")
+    print(f"   returns the measured syndrome on every code: " + ", ".join(f"{n} {complete[n]}" for n, _ in makers))
+    print(f"   coset and least weight give a different correction for every syndrome: {distinct}")
+    print()
+
+    print("2. Share of the syndrome leak in each view of the least weight correction, amplitude damping")
+    for g in gammas:
+        print()
+        print(f"   gamma {g}")
+        print(f"   {'code':26} {'leak':>10} {'correction':>10} {'support':>8} {'weight':>8} {'acted':>8} "
+              f"{'Z frame':>8} {'X frame':>8}")
+        for c in leaky + quiet:
+            leak, d0, d1 = ex.population_leak(c, amplitude_damping(g))
+            v = dc.view_leaks(d0, d1, labels[c.name]["least weight"])
+            print(f"   {c.name:26} {leak:10.3e} {share(v['correction'], leak):>10} {share(v['support'], leak)} "
+                  f"{share(v['weight'], leak)} {share(v['acted'], leak)} {share(v['frame_z'], leak)} "
+                  f"{share(v['frame_x'], leak)}")
+    print()
+
+    g = gammas[-1]
+    print(f"3. The correction under three decoders, gamma {g}")
+    print()
+    print(f"   {'code':26} {'decoder':>18} {'corrections':>11} {'syndromes':>9} {'correction':>10} {'Z frame':>8}")
+    for c in leaky:
+        leak, d0, d1 = ex.population_leak(c, amplitude_damping(g))
+        for name, _ in makers:
+            lab = labels[c.name][name]
+            v = dc.view_leaks(d0, d1, lab)
+            print(f"   {c.name:26} {name:>18} {len(set(lab['correction'])):11d} {2 ** len(c.stab_strings):9d} "
+                  f"{share(v['correction'], leak):>10} {share(v['frame_z'], leak)}")
+    print()
+
+    print(f"4. The Z frame bit over the representatives of Z_L, least weight decoder, gamma {g}")
+    print()
+    print(f"   {'code':26} {'stored':>8} {'all':>5} {'least':>8} {'largest':>8} {'Z type':>7} {'least':>8} "
+          f"{'largest':>8}   at")
+    for c in leaky:
+        leak, d0, d1 = ex.population_leak(c, amplitude_damping(g))
+        spec = dc.frame_spectrum(d0, d1, labels[c.name]["least weight"]["frame_z"])
+        zm = dc.type_masks(c, "Z")
+        top = max(zm, key=lambda a: spec[a])
+        print(f"   {c.name:26} {share(spec[0], leak)} {len(spec):5d} {share(spec.min(), leak)} {share(spec.max(), leak)} "
+              f"{len(zm):7d} {share(min(spec[a] for a in zm), leak)} {share(spec[top], leak)}   "
+              f"{dc.representative(c, c.zl_str, top)}")
+    print()
+    c = shor_code()
+    uneven = [0.02 + 0.01 * q for q in range(c.n)]
+    every = next(a for a in dc.type_masks(c, "Z") if dc.representative(c, c.zl_str, a) == "Z" * c.n)
+    worst = 0.0
+    for per in [[x] * c.n for x in gammas + low] + [uneven]:
+        leak, d0, d1 = ex.population_leak(c, [amplitude_damping(x) for x in per])
+        bit = dc.frame_spectrum(d0, d1, labels[c.name]["least weight"]["frame_z"])[every]
+        worst = max(worst, abs(leak - dc.shor_closed_form(per)), abs(bit - leak))
+    print("   Shor: the syndrome leak, and the leak of the frame bit of Z on every qubit, which is the parity of the")
+    print("   number of X corrections, against the product over the blocks of 1 - prod(1 - gamma) - prod(gamma),")
+    print(f"   at gamma {', '.join(str(x) for x in gammas + low)} and at 0.02 to 0.10 across the qubits: "
+          f"largest difference {worst:.1e}")
+    print()
+
+    print(f"5. Order in gamma: slope of log value against log gamma, {low[0]} to {low[1]}")
+    print()
+    names = ("syndrome",) + dc.VIEWS
+    print(f"   {'code':26} " + " ".join(f"{n:>10}" for n in names))
+    for c in leaky:
+        at = {x: dc.view_leaks(*ex.population_leak(c, amplitude_damping(x))[1:], labels[c.name]["least weight"])
+              for x in low}
+        cells = []
+        for n in names:
+            a, b = at[low[0]][n], at[low[1]][n]
+            cells.append(f"{math.log(b / a) / math.log(low[1] / low[0]):10.2f}" if a > 1e-14 else f"{'-':>10}")
+        print(f"   {c.name:26} " + " ".join(cells))
+    print()
+
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+    R = json.load(open(os.path.join(root, "hardware_shor_pinned_ibm_fez.json")))
+    cal = json.load(open(os.path.join(root, "hardware_shor_pinned_ibm_fez_calibration.json")))["calibration"]
+    meta, counts = R["meta"], R["counts"]
+    shots, delays = meta["shots"], meta["delays_s"]
+    c = shor_code()
+    zbits = [j for j, s in enumerate(c.stab_strings) if set(s) <= {"I", "Z"}]
+    lab = dc.view_labels(c, decs[c.name]["least weight"], checks=zbits)
+    parity = lab["weight"] % 2
+    views = (("the record", np.arange(2 ** len(zbits))), ("correction", lab["correction"]),
+             ("X corrections", lab["weight"]), ("their parity", parity), ("Z frame, stored", lab["frame_z"]),
+             ("acted", lab["acted"]))
+    t1 = [cal["qubits"][str(q)]["t1"] for q in meta["data_qubits"]]
+    print(f"6. The pinned Shor run on {meta['backend']}, job {meta['job_id']}, {shots} shots per circuit, through the views")
+    print()
+    print(f"   the record is the six Z generators; the least weight decoder returns {len(set(lab['correction']))} "
+          f"corrections for its {2 ** len(zbits)} values, X on at most one qubit of each block")
+    print("   achieved: the likelihood ratio fitted on half of each record and scored on the other half")
+    print("   share: achieved over the achieved of the record; above 1 where the fit on 64 outcomes loses to a fit on fewer")
+    print("   model share: amplitude damping over the delay with each data qubit's calibrated T1, nothing else")
+    for t in delays:
+        d0 = es.dist_from_counts(counts[f"{t}_0"], 2 ** len(zbits))[0]
+        d1 = es.dist_from_counts(counts[f"{t}_1"], 2 ** len(zbits))[0]
+        K = [amplitude_damping(1.0 - math.exp(-t / x)) for x in t1]
+        _, m0, m1 = ex.population_leak(c, K)
+        m0, m1 = (np.asarray(m).reshape(2 ** len(zbits), -1).sum(axis=1) for m in (m0, m1))
+        print()
+        print(f"   delay {t * 1e6:.0f} us")
+        print(f"   {'view':>16} {'outcomes':>8} {'distance':>9} {'floor':>7} {'p':>7} {'achieved':>9} {'share':>7} "
+              f"{'model share':>12}")
+        base = None
+        for i, (name, v) in enumerate(views):
+            r = es.leak_from_dists(d0, shots, d1, shots, boots=2000, splits=16, seed=10 + i, transform=dc.transform(v))
+            base = r["distance"] if base is None else base
+            model = tvd(dc.push(m0, v), dc.push(m1, v)) / tvd(m0, m1) if t > 0 else None
+            kept = f"{r['distance'] / base:7.3f}" if base > 0.01 else f"{'-':>7}"
+            ideal = f"{model:12.4f}" if model is not None else f"{'-':>12}"
+            print(f"   {name:>16} {len(set(v)):8d} {r['tvd']:9.4f} {r['null']:7.4f} {r['p_value']:7.4f} "
+                  f"{r['distance']:9.4f} {kept} {ideal}")
+    print()
+
+    from . import zchecks as zc
+    big = css_strings(*ex.rotated_surface_code(5), name="rotated surface d=5")
+    print("7. The Z record under the reset process, exact, from the characteristic function of the syndrome")
+    print()
+    worst = 0.0
+    for c in (shor_code(), ex.surface_code_3()):
+        mz = len(zc.css_parts(c)["Hz"])
+        for p in (0.1, 0.3, 0.5, 0.52, [0.05 + 0.04 * q for q in range(c.n)]):
+            for bit in (0, 1):
+                ref = np.zeros(2 ** mz)
+                for key, w in zc.exact_distribution(c, p, bit).items():
+                    ref[sum(int(b) << j for j, b in enumerate(key))] += w
+                worst = max(worst, float(np.abs(zc.exact_z_distribution(c, p, bit) - ref).max()))
+    print(f"   against the enumeration of the process, Shor and surface d=3, five reset settings: largest difference {worst:.1e}")
+    at = [tvd(zc.exact_z_distribution(big, p, 0), zc.exact_z_distribution(big, p, 1)) for p in (0.01, 0.02)]
+    print(f"   {big.name}: slope of log leak against log reset, 0.01 to 0.02: {math.log2(at[1] / at[0]):.2f}")
+    print()
+    print(f"   {'code':26} {'reset':>7} {'leak':>10} {'fired':>7} {'weight':>7} {'parity':>7} {'stored':>7} "
+          f"{'least':>7} {'largest':>8}")
+    for c in (shor_code(), ex.surface_code_3(), big):
+        weight, error = zc.least_weight_x(c)
+        zl = sum(int(v) << q for q, v in enumerate(zc.css_parts(c)["zl"]))
+        frame = np.array([bin(int(e) & zl).count("1") & 1 for e in error])
+        fired = np.array([bin(s).count("1") for s in range(len(weight))])
+        for p in (0.1153, 0.3075, 0.5204):
+            d0, d1 = zc.exact_z_distribution(c, p, 0), zc.exact_z_distribution(c, p, 1)
+            leak = tvd(d0, d1)
+            spec = dc.frame_spectrum(d0, d1, frame)
+            of = lambda v: tvd(dc.push(d0, v), dc.push(d1, v)) / leak
+            print(f"   {c.name:26} {p:7.4f} {leak:10.3e} {of(fired):7.4f} {of(weight):7.4f} {of(weight % 2):7.4f} "
+                  f"{spec[0] / leak:7.4f} {spec.min() / leak:7.4f} {spec.max() / leak:8.4f}")
+    print()
+    print("   fired: the number of Z checks that fire; weight: the least weight of an X error with the syndrome;")
+    print("   parity: of that weight, the frame bit of Z on every qubit; stored, least, largest: the Z frame bit of")
+    print("   the stored representative and its range over the representatives made of Z generators")
+
+
 RUNS = {"selftest": selftest, "attack": attack, "leak_order": leak_order, "coherent": coherent,
         "structure": structure, "device": device, "held_memory": held_memory,
         "worst_pair": worst_pair, "pauli_boundary": pauli_boundary, "audit": audit, "kl_blocks": kl_blocks,
         "surface": surface, "protection": protection, "shor_circuits": shor_circuits,
         "shor_noise": shor_noise, "estimator": estimator, "disorder": disorder, "readout": readout, "rounds": rounds,
         "shor_device_model": shor_device_model, "tensor": tensor_network,
-        "sampled": sampled_relaxation, "zchecks": z_checks}
+        "sampled": sampled_relaxation, "zchecks": z_checks, "decoded": decoded}
 
 
 def _incomplete(text):

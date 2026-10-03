@@ -169,7 +169,10 @@ It is a classical process. The Z-basis outcome of a CSS logical state |b_L> is u
 with c in the row span of Hx. A reset measures Z and applies X on outcome 1, so the resets on a set R leave
 the X error E = x AND R, and the Z checks read Hz E. No quantum state is simulated. `exact_distribution`
 enumerates the process for small codes; `sample_syndromes` draws it; `sample_counts` streams a statistic a
-chunk at a time.
+chunk at a time. `exact_z_distribution(code, p_reset, bit)` returns the exact distribution over the Z
+syndromes from its characteristic function, a mean over the stabilizer codewords, at a cost of the number
+of codewords times the number of Z syndromes, which reaches the distance 5 surface code.
+`least_weight_x(code)` gives, for every Z syndrome, the least weight of an X error that has it.
 
 Under this process x restricted to R is uniform on a coset of the restricted code, and the two logical
 states' syndromes differ exactly when a Z stabilizer restricted to R is a Z logical of the active qubit.

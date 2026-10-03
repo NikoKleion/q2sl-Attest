@@ -18,6 +18,17 @@ def _load(path):
     return mod
 
 
+def _case(cls, name):
+    def run():
+        case = cls(name)
+        case.setUp()
+        try:
+            getattr(case, name)()
+        finally:
+            case.tearDown()
+    return run
+
+
 def main():
     files = sorted(f for f in os.listdir(HERE) if f.startswith("test_") and f.endswith(".py"))
     npass = nfail = nskip = 0
@@ -29,6 +40,9 @@ def main():
             print(f"  [ERROR loading] {f}: {ex}"); nfail += 1; failures.append((f, ex)); continue
         tests = [(n, fn) for n, fn in inspect.getmembers(mod, inspect.isfunction)
                  if n.startswith("test_") and fn.__module__ == mod.__name__]
+        for cname, cls in inspect.getmembers(mod, inspect.isclass):
+            if issubclass(cls, unittest.TestCase) and cls.__module__ == mod.__name__:
+                tests += [(f"{cname}.{n}", _case(cls, n)) for n in unittest.TestLoader().getTestCaseNames(cls)]
         for name, fn in tests:
             label = f"{f}::{name}"
             try:

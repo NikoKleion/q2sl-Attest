@@ -14,7 +14,7 @@ python -m syndrome_leakage.figures                     # the figures, from the s
 Run names: `selftest`, `attack`, `leak_order`, `coherent`, `structure`, `device`, `held_memory`,
 `worst_pair`, `pauli_boundary`, `audit`, `kl_blocks`, `surface`, `protection`, `shor_circuits`,
 `shor_noise`, `estimator`, `disorder`, `readout`, `rounds`, `shor_device_model`, `tensor`, `sampled`,
-`zchecks`. `shor_circuits` needs qiskit and qiskit-aer; `shor_noise` also needs qiskit-ibm-runtime for the
+`zchecks`, `decoded`. `shor_circuits` needs qiskit and qiskit-aer; `shor_noise` also needs qiskit-ibm-runtime for the
 fake backend and takes about seven minutes. `shor_device_model` reads the circuits and calibration saved
 with the `hardware_shor` measurement. `sampled` needs stim and takes about 25 minutes, most of it on the two
 bivariate bicycle codes. `zchecks` uses scipy for the integer programs, ldpc for the decoded parity and stim
@@ -134,8 +134,18 @@ For the [[4,1,2]] code, Leung, Nielsen, Chuang and Yamamoto (1997) find the dete
 across the codespace at order gamma^2. The analytic order for that code is 2.
 
 | code | analytic order | AD population distance | equal |
-|
-The coefficient of that leading term, leak divided by gamma^order at gamma = 1e-4, beside the number of
+|---|---|---|---|
+| repetition | 1 | 1 | yes |
+| [[4,1,2]] | 2 | 2 | yes |
+| Hamming [[7,1,2]] | 3 | 3 | yes |
+| Steane [[7,1,3]] | none | 3 | no |
+| five-qubit [[5,1,3]] | none | 5 | no |
+
+The two quantities agree on the three leaking codes and diverge on Steane and the five-qubit code, whose
+codewords separate at finite weight while the syndrome distribution does not change. The analytic order
+and the codeword distance are different quantities.
+
+The coefficient of the leading term, leak divided by gamma^order at gamma = 1e-4, beside the number of
 minimal sets the order comes from:
 
 | code | order | coefficient | minimal sets |
@@ -151,17 +161,6 @@ minimal sets and a coefficient of seven. On the [[4,2,2]] code the coefficient i
 on the L=2 toric code it is 2.0 against 4, so the agreement above is a coincidence of those codes rather
 than a rule. The order is available from the stabilizer strings at any size; the coefficient is not, and
 the column is here as a target for a derivation that has not been done.
-
----|---|---|---|
-| repetition | 1 | 1 | yes |
-| [[4,1,2]] | 2 | 2 | yes |
-| Hamming [[7,1,2]] | 3 | 3 | yes |
-| Steane [[7,1,3]] | none | 3 | no |
-| five-qubit [[5,1,3]] | none | 5 | no |
-
-The two quantities agree on the three leaking codes and diverge on Steane and the five-qubit code, whose
-codewords separate at finite weight while the syndrome distribution does not change. The analytic order
-and the codeword distance are different quantities.
 
 ---
 
@@ -307,8 +306,24 @@ damping 0.05:
 | toric L=2, logical 0 | 2.556069e-03 | 2.556069e-03 |
 | toric L=2, logical 1 | 2.556069e-03 | 2.556069e-03 |
 
-Under amplitude damping at 0.2 and 0.05, and under a coherent X rotation of 0.3, every code agrees with
-the exact engine to a relative 1e-12. Depolarizing noise at 0.1 gives exactly 0.0 on Shor.
+Under amplitude damping at 0.2 and 0.05 every code agrees with the exact engine to a relative 1e-12.
+Depolarizing noise at 0.1 gives exactly 0.0 on Shor.
+
+A channel that moves the X part of a Pauli operator takes the general network, with separate X variables
+on the three copies. A coherent X rotation of 0.3 is such a channel and gives zero in both engines on
+every code. Amplitude damping at 0.2 followed by that rotation gives a nonzero distance:
+
+| code | exact | contracted |
+|---|---|---|
+| 3-qubit repetition | 3.775477e-01 | 3.775477e-01 |
+| [[4,1,2]] | 3.439424e-02 | 3.439424e-02 |
+| Hamming [[7,1,2]] | 2.272611e-03 | 2.272611e-03 |
+| Shor [[9,1,3]] | 6.727061e-03 | 6.727061e-03 |
+| rotated surface [[9,1,3]] | 1.894037e-03 | 1.894037e-03 |
+| toric L=2, logical 0 | 1.191234e-02 | 1.191234e-02 |
+| toric L=2, logical 1 | 1.191234e-02 | 1.191234e-02 |
+
+Every code agrees to a relative 1e-12.
 
 Precision. On the Hamming code the L2 distance over gamma cubed must settle to a constant as the damping
 falls:
@@ -718,6 +733,155 @@ The distance-3 codes have logical-error slope 2 under both channels. Of these, S
 code show no leak, and Shor and the rotated surface code leak with slope 3. The distance-2 and distance-1
 codes have logical-error slope 1; for the built-in Hamming code the slope-1 term is its weight-2 logical X,
 which moves |0_L> and |1_L> and leaves |+_L>.
+
+---
+
+## decoded
+
+The leak that remains when an observer sees a decoder's output in place of the syndrome record, from
+`decoded.py`. A view is a function of the syndrome: the correction a decoder returns, the qubits it acts on
+(support), their number (weight), whether it acts at all (acted), and the two frame bits, which say whether
+the correction anticommutes with Z_L (Z frame) or with X_L (X frame). The frame bit is the output Higgott
+and Gidney describe for a matching decoder, a prediction of which logical observable measurements were
+flipped. The distance between the two logical states' distributions of a view is at most the syndrome leak,
+since the statistical distance does not increase under a function (Hastad et al., Proposition 2.2; Shen and
+Zhong state it for a decoder), and equals it when the difference of the two syndrome distributions has one
+sign on every set of syndromes the view merges. States |0_L> and |1_L>, one round, ideal syndrome measurement.
+
+Three decoders. The least weight decoder returns, for each syndrome, the first Pauli of least weight that
+has it. The coset decoder is the one of `rounds.py`. The single-qubit table is the default of
+`protection.py` and returns the identity for a syndrome that no single-qubit Pauli has.
+
+Control 1: under depolarizing noise of 0.1, on seven codes and three decoders, the largest value of any view
+is 0.0e+00.
+
+Control 2: under amplitude damping no view exceeds the syndrome leak; the largest excess is 2.8e-17.
+
+Control 3: the coset and least weight decoders return a correction with the measured syndrome on every
+code, and a different correction for every syndrome. The single-qubit table does not.
+
+Share of the syndrome leak in each view of the least weight correction, amplitude damping 0.05:
+
+| code | leak | correction | support | weight | acted | Z frame | X frame |
+|---|---|---|---|---|---|---|---|
+| 3-qubit repetition | 1.425e-01 | 1.0000 | 1.0000 | 1.0000 | 1.0000 | 0.3333 | 0.0000 |
+| [[4,1,2]] | 9.025e-03 | 1.0000 | 0.7500 | 0.7500 | 0.2500 | 1.0000 | 0.0000 |
+| Hamming [[7,1,2]] | 4.343e-04 | 1.0000 | 0.4075 | 0.2532 | 0.0633 | 0.0617 | 0.0925 |
+| Shor [[9,1,3]] | 2.894e-03 | 1.0000 | 0.6528 | 0.4375 | 0.0625 | 0.0370 | 0.0625 |
+| rotated surface [[9,1,3]] | 7.654e-04 | 1.0000 | 0.4660 | 0.2371 | 0.1051 | 0.1541 | 0.0705 |
+| 5-qubit [[5,1,3]] | 0.000e+00 | - | - | - | - | - | - |
+| Steane [[7,1,3]] | 0.000e+00 | - | - | - | - | - | - |
+
+At amplitude damping 0.2 the shares of the Shor code are the same to four decimals, and those of the surface
+code are 0.4730, 0.1980, 0.0990, 0.1849 and 0.0683.
+
+The correction under the three decoders, amplitude damping 0.05:
+
+| code | decoder | corrections | syndromes | correction | Z frame |
+|---|---|---|---|---|---|
+| Hamming [[7,1,2]] | single-qubit table | 19 | 64 | 0.4399 | 0.1558 |
+| Hamming [[7,1,2]] | coset | 64 | 64 | 1.0000 | 0.0000 |
+| Hamming [[7,1,2]] | least weight | 64 | 64 | 1.0000 | 0.0617 |
+| Shor [[9,1,3]] | single-qubit table | 22 | 256 | 0.3750 | 0.1250 |
+| Shor [[9,1,3]] | coset | 256 | 256 | 1.0000 | 0.2963 |
+| Shor [[9,1,3]] | least weight | 256 | 256 | 1.0000 | 0.0370 |
+| rotated surface [[9,1,3]] | single-qubit table | 24 | 256 | 0.5522 | 0.1724 |
+| rotated surface [[9,1,3]] | coset | 256 | 256 | 1.0000 | 0.1474 |
+| rotated surface [[9,1,3]] | least weight | 256 | 256 | 1.0000 | 0.1541 |
+
+The frame bit depends on which representative of Z_L it is taken against. Multiplying Z_L by the stabilizer
+with generator mask a adds a.s to the bit, which is equation 1 of Higgott and Gidney. Share of the syndrome
+leak in the Z frame bit over the representatives, least weight decoder, amplitude damping 0.05; "Z type"
+counts the representatives written with Z alone:
+
+| code | stored | representatives | least | largest | Z type | least | largest | largest at |
+|---|---|---|---|---|---|---|---|---|
+| 3-qubit repetition | 0.3333 | 4 | 0.3333 | 1.0000 | 4 | 0.3333 | 1.0000 | ZZZ |
+| [[4,1,2]] | 1.0000 | 8 | 0.0000 | 1.0000 | 4 | 0.0000 | 1.0000 | ZIZI |
+| Hamming [[7,1,2]] | 0.0617 | 64 | 0.0000 | 0.5584 | 8 | 0.0000 | 0.4318 | ZZIZIIZ |
+| Shor [[9,1,3]] | 0.0370 | 256 | 0.0000 | 1.0000 | 64 | 0.0370 | 1.0000 | ZZZZZZZZZ |
+| rotated surface [[9,1,3]] | 0.1541 | 256 | 0.0000 | 0.9537 | 16 | 0.1383 | 0.9537 | ZZZZZZZZZ |
+
+The frame bit of Z on every qubit is the parity of the number of X corrections. On the Shor code it carries
+the whole leak, and the leak has a closed form: with p_b = 1 - prod(1 - gamma_q) - prod(gamma_q) over the
+three qubits of block b, the chance that the Z checks of an excited block fire, the leak is p_1 p_2 p_3.
+With one strength, p_b is eq. 2 of Shen and Zhong for the three-qubit repetition code at one round.
+The engine, the frame bit and the closed form agree to 1.5e-16 at amplitude damping 0.2, 0.05, 0.01 and
+0.005 and at strengths from 0.02 to 0.10 across the qubits.
+
+Order in the damping strength, slope of log value against log strength from 0.005 to 0.01:
+
+| code | syndrome | correction | support | weight | acted | Z frame | X frame |
+|---|---|---|---|---|---|---|---|
+| 3-qubit repetition | 0.99 | 0.99 | 0.99 | 0.99 | 0.99 | 0.99 | - |
+| [[4,1,2]] | 1.99 | 1.99 | 1.99 | 1.99 | 1.99 | 1.99 | - |
+| Hamming [[7,1,2]] | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 |
+| Shor [[9,1,3]] | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 | 2.98 |
+| rotated surface [[9,1,3]] | 2.98 | 2.98 | 2.98 | 2.97 | 2.98 | 2.99 | 2.98 |
+
+No view raises the order.
+
+The records of the `hardware_shor_pinned` run on `ibm_fez` through the same views. The record is the six Z
+generators, and the least weight decoder returns 64 corrections for its 64 values, X on at most one qubit
+of each block. Distance is the plug-in reading; achieved is the likelihood ratio fitted on half of each
+record and scored on the other half.
+
+| view | outcomes | distance, 20 us | 50 us | 100 us | achieved, 20 us | 50 us | 100 us |
+|---|---|---|---|---|---|---|---|
+| the record | 64 | 0.0438 | 0.1673 | 0.2337 | 0.0263 | 0.1655 | 0.2329 |
+| correction | 64 | 0.0438 | 0.1673 | 0.2337 | 0.0271 | 0.1663 | 0.2336 |
+| number of X corrections | 4 | 0.0367 | 0.1671 | 0.2337 | 0.0369 | 0.1671 | 0.2351 |
+| their parity | 2 | 0.0367 | 0.1671 | 0.2337 | 0.0357 | 0.1668 | 0.2331 |
+| Z frame, stored representative | 2 | 0.0094 | 0.0084 | 0.0033 | 0.0083 | 0.0061 | 0.0000 |
+| acted | 2 | 0.0184 | 0.0407 | 0.0569 | 0.0193 | 0.0394 | 0.0566 |
+
+At zero delay every view reads a permutation p of 0.4930 or more. At 50 and 100 us the one bit holds the
+distance of the 64 outcomes to 0.0002. At 20 us the bit achieves 0.0357 where the 64-outcome record achieves
+0.0263: the plug-in floor of the record is 0.0238 against 0.0044 for the bit, and the fit on 64 outcomes
+loses more to its own noise than the bit loses by merging. Under amplitude damping over the delay with each
+data qubit's calibrated T1 and nothing else, the number of X corrections and its parity carry 1.0000 of the
+Z-record leak, the stored representative 0.0398, 0.0348 and 0.0271 at the three delays, and acted 0.2500;
+the measured acted share of the achieved distance is 0.238 and 0.243 at 50 and 100 us.
+
+The Z record at distance 5, under the reset process of `zchecks.py`. The characteristic function of the
+syndrome, E[(-1)^(a.s)], is a mean over the stabilizer codewords of a product over their qubits, and its
+Walsh-Hadamard transform is the distribution. The cost is the number of codewords times the number of Z
+syndromes, 4096 by 4096 at distance 5. Control: on the Shor code and the distance 3 surface code, at five
+reset settings, the distribution equals the enumeration of the process to 4.1e-15. At distance 5 the slope of
+log leak against log reset from 0.01 to 0.02 is 4.88, for a leak order of 5.
+
+Shares of the Z-record leak at the resets of the `zchecks` run. Fired is the number of Z checks that fire,
+weight the least weight of an X error with the syndrome, parity the parity of that weight, which is the frame
+bit of Z on every qubit; the last three columns are the Z frame bit of the stored representative and its
+range over the representatives made of Z generators.
+
+| code | reset | leak | fired | weight | parity | stored | least | largest |
+|---|---|---|---|---|---|---|---|---|
+| Shor [[9,1,3]] | 0.1153 | 2.866e-02 | 0.5926 | 1.0000 | 1.0000 | 0.0370 | 0.0370 | 1.0000 |
+| Shor [[9,1,3]] | 0.3075 | 2.607e-01 | 0.5926 | 1.0000 | 1.0000 | 0.0370 | 0.0370 | 1.0000 |
+| Shor [[9,1,3]] | 0.5204 | 4.198e-01 | 0.5926 | 1.0000 | 1.0000 | 0.0370 | 0.0370 | 1.0000 |
+| rotated surface [[9,1,3]] | 0.1153 | 7.430e-03 | 0.7143 | 1.0000 | 1.0000 | 0.1429 | 0.1429 | 1.0000 |
+| rotated surface [[9,1,3]] | 0.3075 | 6.759e-02 | 0.7143 | 1.0000 | 1.0000 | 0.1429 | 0.1429 | 1.0000 |
+| rotated surface [[9,1,3]] | 0.5204 | 1.088e-01 | 0.7143 | 1.0000 | 1.0000 | 0.1429 | 0.1429 | 1.0000 |
+| rotated surface d=5 | 0.1153 | 4.044e-04 | 0.2436 | 0.2323 | 0.1987 | 0.0395 | 0.0001 | 0.3289 |
+| rotated surface d=5 | 0.3075 | 1.326e-02 | 0.1778 | 0.2720 | 0.0759 | 0.0585 | 0.0001 | 0.2832 |
+| rotated surface d=5 | 0.5204 | 2.920e-02 | 0.1621 | 0.2967 | 0.0472 | 0.0626 | 0.0001 | 0.2727 |
+
+On both distance 3 codes the parity of the least weight carries the whole Z-record leak. At distance 5 it
+carries 0.0472 to 0.1987, the count of fired checks 0.1621 to 0.2436, and no frame bit more than 0.3289. The
+`zchecks` run reads the distance 5 code through the count of fired checks and achieves 0.00249 and 0.00501
+at resets 0.3075 and 0.5204; the count's exact value there is 0.00236 and 0.00473, and the Z-record leak is
+1.326e-02 and 2.920e-02.
+
+Limits:
+
+- One round with ideal syndrome measurement in the exact engine, |0_L> against |1_L>, amplitude damping,
+  codes of at most nine qubits and one logical qubit. The distance 5 rows are the Z record under the reset
+  process, which the `zchecks` section checks against the exact engine on the smaller codes.
+- The frame bit depends on the decoder's choice among corrections of equal weight and on the representative.
+  The tables give one decoder's choice and the range over representatives, not a worst case over decoders.
+- A decoder in a repeated experiment works on detection events across rounds. That case is not covered.
+- The hardware rows reuse the records of one job: one code, one backend, the Z generators only.
 
 ---
 

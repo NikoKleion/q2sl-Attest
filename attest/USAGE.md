@@ -43,7 +43,7 @@ fields your backend version exposes.
 ## Install
 
 ```bash
-pip install git+https://github.com/NikoKleion/qrng-attest
+pip install "git+https://github.com/NikoKleion/q2sl-Attest#subdirectory=attest"
 ```
 
 Not on PyPI. Install from the repository, or from a clone with `pip install -e .`.

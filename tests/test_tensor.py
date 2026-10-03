@@ -100,11 +100,15 @@ def test_a_channel_that_moves_x_parts_uses_the_general_network():
     from syndrome_leakage.tensor import _locks_x, local_table
     theta = 0.3
     K = [np.cos(theta) * np.eye(2) - 1j * np.sin(theta) * np.array([[0, 1], [1, 0]])]
-    assert not _locks_x(local_table(K))
+    damped = [k @ a for a in amplitude_damping(0.2) for k in K]   # damping, then the rotation: a nonzero distance
+    assert not _locks_x(local_table(K)) and not _locks_x(local_table(damped))
     assert _locks_x(local_table(amplitude_damping(0.2)))
     for code in (STANDARD["code_4_1_2"](), shor_code(), ex.surface_code_3()):
-        exact = exact_l2(code, K)[0]
-        assert abs(tn.l2_leak(code, K)["l2"] - exact) <= 1e-12 * max(exact, 1e-300), code.name
+        # the rotation alone gives zero in both engines, compared on an absolute scale
+        assert exact_l2(code, K)[0] < 1e-15 and tn.l2_leak(code, K)["l2"] < 1e-15, code.name
+        exact = exact_l2(code, damped)[0]
+        assert exact > 1e-4, code.name
+        assert abs(tn.l2_leak(code, damped)["l2"] - exact) <= 1e-12 * exact, code.name
 
 
 def test_the_plan_is_reproducible_and_leaves_the_global_generator_alone():

@@ -1,8 +1,7 @@
 # Sources
 
-The entropy attestation of quantum random number generation is `qrng_attest`, in `attest/`. It is a
-standalone project with its own documentation, tests and results, kept in step with the repository
-`NikoKleion/qrng-attest` by `scripts/sync_attest.sh`.
+The entropy attestation of quantum random number generation is `qrng_attest`, in `attest/`. It has its own
+documentation, tests and results.
 
 | document | contents |
 |---|---|

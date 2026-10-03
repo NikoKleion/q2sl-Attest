@@ -33,31 +33,60 @@ extractable = 10766 uniform bits at epsilon = 2^-64
 
 ## nist_vectors
 
-Known-answer check against the NIST SP 800-90B reference vectors, in `results/nist_vectors.txt`. The
-reference column is the output of NIST `ea_non_iid` on the same vectors.
+`python scripts/nist_vectors.py`, in `results/nist_vectors.txt`. Known-answer check against the NIST SP
+800-90B reference vectors. The reference column is the output NIST publishes for its `ea_non_iid` on the
+same vectors, kept in `tests/nist_vectors/*.res`.
 
 `rand1_short`, binary, per estimator:
 
 | estimator | this package | NIST | difference |
 |---|---|---|---|
-| most_common_value | 0.9610588257 | 0.9610588257 | 0 |
+| most_common_value | 0.9610588257 | 0.9610588257 | 1.1e-16 |
 | collision | 0.6914641210 | 0.6914641210 | 4.8e-15 |
 | markov | 0.9875961045 | 0.9875961045 | 1.1e-15 |
-| compression | 0.6117162048 | 0.6117162048 | 0 |
+| compression | 0.6117162048 | 0.6117162048 | 1.1e-16 |
 | t_tuple | 0.8676244308 | 0.8676244308 | 0 |
 | lrs | 0.9626258038 | 0.9626258038 | 0 |
-| multimcw | 0.9586714134 | 0.9526180605 | 6.1e-03 |
-| lag | 0.9447211462 | 0.9433337066 | 1.4e-03 |
-| multimmc | 0.9651353342 | 0.9616166678 | 3.5e-03 |
-| lz78y | 0.9704799929 | 0.9614462460 | 9.0e-03 |
+| multimcw | 0.9526180605 | 0.9526180605 | 0 |
+| lag | 0.9433337066 | 0.9433337066 | 0 |
+| multimmc | 0.9616166678 | 0.9616166678 | 1.1e-16 |
+| lz78y | 0.9614462460 | 0.9614462460 | 0 |
 
-The six non-predictor estimators agree to 4.8e-15, at the level of double-precision arithmetic. The four
-predictors agree to 9.0e-3; they use an online ensemble whose tie-breaking is not specified by the
-standard, so exact agreement is not expected.
+`rand4_short` (alphabet 16) and `rand8_short` (alphabet 256) cover the multi-bit path, where a source is
+assessed as literal symbols and as its bitstring. Every estimator of both tracks, `H_original`,
+`H_bitstring` and the assessed value are compared, 20 values per vector:
 
-`rand4_short` (alphabet 16) and `rand8_short` (alphabet 256) are also checked, covering the multi-bit path
-where a source is assessed both as literal symbols and as its bitstring. Worst deviation on the shared
-keys is at the same 1e-15 level.
+| vector | H_original | H_bitstring | assessed | worst difference |
+|---|---|---|---|---|
+| rand4_short | 3.5674726724 | 0.8038720670 | 3.2154882679 | 2.3e-15 |
+| rand8_short | 6.6364412871 | 0.7326117181 | 5.8608937445 | 2.3e-11 |
+
+The 2.3e-11 is on the Lag predictor of `rand8_short`, whose estimate is set by the longest run of correct
+predictions; the reference evaluates that bound in extended precision. For the four predictors the
+reference also prints the number of correct predictions, the longest run and the number of predictions.
+These integers are equal on all 20 predictor blocks of the three vectors.
+
+`python scripts/nist_vectors.py <clone> [vector ...]`, in `results/nist_reference_vectors.txt`, runs the
+whole assessment on the vectors of a clone of NIST's repository and compares every min-entropy line of
+both tracks, `H_original`, `H_bitstring` and the assessed value with `cpp/selftest/refdata/*.res`. All
+eleven vectors of the repository at commit 87c104d0, version 1.1.8:
+
+| vector | samples | alphabet | values compared | assessed | NIST | worst difference |
+|---|---|---|---|---|---|---|
+| biased-random-bits | 1000000 | 2 | 12 | 0.0177665791 | 0.0177665791 | 8.22e-12 |
+| biased-random-bytes | 1000000 | 256 | 20 | 0.2577408710 | 0.2577408710 | 1.86e-10 |
+| data.pi | 1165666 | 2 | 12 | 0.5695375935 | 0.5695375935 | 4.33e-15 |
+| normal | 1000000 | 179 | 20 | 4.1000957831 | 4.1000957831 | 6.39e-14 |
+| rand1_short | 10000 | 2 | 12 | 0.6117162048 | 0.6117162048 | 4.77e-15 |
+| rand4_short | 10000 | 16 | 20 | 3.2154882679 | 3.2154882679 | 2.33e-15 |
+| rand8_short | 10000 | 256 | 20 | 5.8608937445 | 5.8608937445 | 2.27e-11 |
+| ringOsc-nist | 1000000 | 2 | 12 | 0.1264457362 | 0.1264457362 | 3.21e-10 |
+| truerand_1bit | 1000000 | 2 | 12 | 0.8296770832 | 0.8296770832 | 2.10e-14 |
+| truerand_4bit | 1000000 | 16 | 20 | 3.6025063686 | 3.6025063686 | 3.47e-14 |
+| truerand_8bit | 1000000 | 256 | 20 | 7.2338614552 | 7.2338614552 | 1.01e-13 |
+
+180 values, worst difference 3.21e-10 bits. A vector of a million 8-bit samples takes about five minutes.
+The reference is NIST's software at one commit; agreement with it is not a NIST validation.
 
 ---
 

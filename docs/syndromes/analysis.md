@@ -120,6 +120,28 @@ which works on codes of any size. The logical error is 1 - <psi| rho' |psi>, com
 1 - sum_s <R_s psi| E(rho) |R_s psi>. It takes any `Code` or strings-only code up to about twelve qubits,
 where the n-qubit density matrix fits in memory.
 
+## The leak through a decoder's output
+
+```python
+from syndrome_leakage import decoded as dc
+
+dec = dc.min_weight_decoder(code)                  # syndrome bits -> a Pauli of least weight
+dc.decoded_leak(code, amplitude_damping(0.05))     # {"syndrome": ..., "correction": ..., "weight": ..., ...}
+labels = dc.view_labels(code, dec)                 # one integer per syndrome for each view
+dc.frame_spectrum(d0, d1, labels["frame_z"])       # the frame bit's leak for every representative of Z_L
+```
+
+An observer may see what a decoder returns instead of the syndrome. Each view is a function of the
+syndrome, so its leak is at most the syndrome leak. The views are the correction, the qubits it acts on
+(`support`), their number (`weight`), whether it acts (`acted`), and the frame bits `frame_z` and `frame_x`,
+which say whether the correction anticommutes with Z_L or X_L. A decoder that returns a correction with
+the measured syndrome gives a different correction for every syndrome, and the correction then carries the
+whole leak. `view_labels(code, decoder, checks=...)` labels the records of a subset of the generators, and
+`transform(labels)` passes a view to the functions of `estimate.py` for measured records. Entry `a` of
+`frame_spectrum` is the leak of the frame bit taken against Z_L times the stabilizer with generator mask
+`a`; `representative(code, code.zl_str, a)` returns that string and `type_masks(code, "Z")` the masks made
+of Z generators alone. Any callable from syndrome bits to a Pauli string serves as the decoder, as in `protection.py`.
+
 ## Hold a state through many rounds
 
 ```python
