@@ -2,19 +2,18 @@
 
 <img src="assets/logo_readme.png" width="360" alt="q2sl attest">
 
-**Quantum Syndrome and Source Limits**
+**QEC Syndrome Stabilizer Leakage**
 
 [![python](https://img.shields.io/badge/python-3.11%2B-30363D?style=flat-square)](https://www.python.org/)
-[![tests](https://img.shields.io/badge/tests-337-30363D?style=flat-square)](docs/testing.md)
+[![tests](https://img.shields.io/badge/tests-253-30363D?style=flat-square)](docs/testing.md)
 [![version](https://img.shields.io/badge/version-1.0-30363D?style=flat-square)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-Apache%202.0-30363D?style=flat-square)](LICENSE)
 
 </div>
 
-q2sl attest bounds what an observer can learn from the output of a quantum device, in two settings: the
-syndrome record of a stabilizer code, and the output of a quantum random number generator. For a stated
-code, noise and decoder, or a stated sample and readout calibration, it returns the number. It is written
-in Python on numpy, with Qiskit for the circuits, backends and hardware runs.
+q2sl attest bounds what an observer can learn from the syndrome record of a stabilizer code. For a stated
+code, noise and decoder it returns the number. It is written in Python on numpy, with Qiskit for the
+circuits, backends and hardware runs.
 
 ## Use
 
@@ -23,15 +22,23 @@ in Python on numpy, with Qiskit for the circuits, backends and hardware runs.
 | a code under a noise channel | `q2sl assess <code>`, `expectations.population_leak(code, kraus)` | the total variation distance d between the syndrome records of the logical states 0_L and 1_L; an observer of one record identifies the state with probability (1 + d)/2 |
 | the order of d in the noise strength | `zchecks.leak_order(code)` | the leading power, or none for a code whose record does not depend on the state |
 | a decoder's output in place of the syndrome | `decoded.decoded_leak(code, kraus)` | d for the correction, its weight and the logical frame bit |
+| a part of the record | `regions.region_leak(code, kraus, checks)`, `regions.css_region_leak(code, p, checks)` | d for an observer of the chosen generators, which is at most d of the whole record; for a CSS code under relaxation, at any code size |
+| where the dependence sits | `regions.smallest_leaking_set(code)`, `regions.qubit_drops(code, kraus)` | the fewest Z generators whose joint record depends on the state; d with each qubit made noiseless in turn, and the signed difference |
 | two measured count records | `estimate.leak_from_counts(c0, c1, n_outcomes)` | a permutation p-value, and the d a likelihood ratio achieves on held-out shots |
 | circuits for a device | `hardware.build_extraction_circuits(code, delays)` | Qiskit circuits that prepare 0_L and 1_L, idle, and measure one round of generators |
-| a sample of random bits or bytes | `qrng-attest capture <path>`, `estimators.min_entropy(samples)` | the SP 800-90B min-entropy per sample |
-| a random number source on a backend | `qrng-attest backend <name>` | a min-entropy bound net of readout error, and the number of uniform bits it yields |
+| a part of a circuit | `gate_level.run_round(circuits, cal, shots, seeds, ideal=("window",))` | sampled records of the transpiled circuits under a device model, with the encoder, the idle window, the extraction or the readout made noiseless |
+
+`zchecks.leak_order` and `regions.smallest_leaking_set` need scipy, the circuit builders need Qiskit and the
+device model needs qiskit-aer; `pip install -e ".[full]"` installs them.
 
 Not provided:
 
-- d for a code past about 14 qubits. At larger sizes the package returns the order and lower bounds, and a
-  lower bound near zero does not establish that a record is independent of the state.
+- d for a code past about 14 qubits under a general channel. Under relaxation the record of a CSS code is
+  exact up to the 24 generators of the distance 5 surface code; past that the package returns the order and
+  lower bounds, and a lower bound near zero does not establish that a record is independent of the state.
+- A share of d for each generator or each qubit. In the codes tested no single generator's record depends on
+  the state, a part of the record that reads zero does not show the whole does, and the drops from making
+  one qubit noiseless do not add up to d and turn negative at strong damping.
 - Logical states other than 0_L and 1_L, apart from a search over a grid of 58 states for one round. Mixed
   logical states. A code with several logical qubits is read one logical qubit at a time, in the basis the
   construction picks.
@@ -41,9 +48,7 @@ Not provided:
   measured syndrome.
 - A nonzero d under Pauli noise. It is zero for every Pauli channel, so a Pauli simulation cannot show it.
 - Agreement of the gate-level model with a device. On the ibm_fez runs the measured d is 0.6 to 2.1 times
-  the model's.
-- For sources: a validation under CAVP or CMVP, a bound for a device whose readout calibration is not
-  trusted, symbols wider than 8 bits, and the restart tests of SP 800-90B.
+  the model's, and a part of a circuit is made noiseless in the model only.
 
 Read first:
 
@@ -52,10 +57,9 @@ Read first:
 - [docs/syndromes/limits.md](docs/syndromes/limits.md) what each model assumes
 - [docs/syndromes/engines.md](docs/syndromes/engines.md) which engine returns which quantity, and at what
   size
+- [docs/syndromes/analysis.md](docs/syndromes/analysis.md) each entry point above with its arguments
 - [docs/results.md](docs/results.md) every run with its control
-- [attest/README.md](attest/README.md) the assessment, the attestation and the certificate
-- Shen and Zhong, arXiv:2609.09334, for the observer and the order of the dependence; NIST SP 800-90B for
-  the assessment
+- Shen and Zhong, arXiv:2609.09334, for the observer and the order of the dependence
 
 ## Syndromes
 
@@ -79,29 +83,17 @@ project "leakage" refers to this information, not to population leaving the comp
   that returns the measured syndrome, and the logical error after recovery.
 - The leak through a decoder's output: the correction, its weight, and the logical frame bit over the
   representatives of the logical operator.
+- The leak of a part of the record: the generators an observer sees, from the products of those generators
+  alone; for X and Z generators of a CSS code under T1 and T2 relaxation at any code size, at a cost set by
+  the qubits they touch, up to the whole record of the distance 5 surface code and a column of the distance
+  11 code; the fewest Z generators whose joint record leaks, by integer programming; and the leak with one
+  qubit made noiseless, which is signed.
 - Estimates from measured records, by a permutation test and a likelihood ratio scored on held-out shots.
 - Qiskit circuits for any CSS code: |0_L> and |1_L> from the CSS encoder, an idle delay, and one round of
   the selected generators on one ancilla each, with flag qubits as an option; the same round as Stim text
-  with detectors; and a gate-level model that runs the transpiled circuits under a backend's calibration.
+  with detectors; and a gate-level model that runs the transpiled circuits under a backend's calibration,
+  with the encoder, the idle window, the extraction or the readout made noiseless in turn.
 - Codes loaded from files, qecdb.org, qLDPC and ldpc.
-
-## Sources
-
-A random number generator's output can carry classical detector noise, crosstalk and drift alongside the
-entropy of its quantum source. `qrng_attest`, in [attest/](attest/), bounds the min-entropy that output
-holds and the number of uniform bits it can yield.
-
-- The NIST SP 800-90B assessment of bits or of symbols up to 8 bits wide: the IID track, the non-IID
-  min-entropy estimators, the multi-bit combination and the health tests. The assessment reproduces the
-  output NIST publishes for its reference tool on the eleven vectors of its repository to under 1e-9 bits,
-  which is not a validation under CAVP or CMVP.
-- Device attestation: a min-entropy bound from the device's measured readout calibration, taken as given,
-  with the calibration's statistical margin propagated, a worst-pair joint bound for correlated qubits,
-  and drift across captures.
-- Extraction of uniform bits by a Toeplitz hash under the leftover hash lemma, at a stated epsilon.
-- Sources from a Qiskit backend, where a circuit prepares each qubit in |+> and measures it and circuits
-  that prepare |0> and |1> on the same qubits give the assignment matrix; from a captured file, a live
-  callback or a synthetic model; and the NIST SP 800-22 battery through the optional nistrng package.
 
 ## Supporting packages
 
@@ -139,13 +131,12 @@ q2sl assess shor                           # the analyses for one code
 q2sl assess file:mycode.npz                # a code from a file
 q2sl qecdb n=9 k=1 d=3                     # search qecdb.org for CSS codes
 q2sl assess qecdb:674f2504f9caaa7ce7667423
-q2sl attest demo                           # entropy attestation of a synthetic source
 python -m syndrome_leakage.experiments --save
 python -m syndrome_leakage.figures
 ```
 
 ```python
-from syndrome_leakage import decoded, expectations as ex, zchecks
+from syndrome_leakage import decoded, expectations as ex, regions, zchecks
 from syndrome_leakage.channels import amplitude_damping
 from syndrome_leakage.hardware import build_extraction_circuits
 
@@ -153,6 +144,10 @@ code = ex.surface_code_3()
 leak, d0, d1 = ex.population_leak(code, amplitude_damping(0.1))
 order = zchecks.leak_order(code)["order"]
 views = decoded.decoded_leak(code, amplitude_damping(0.1))
+part = regions.region_leak(code, amplitude_damping(0.1), "z")[0]
+whole = regions.css_region_leak(code, 0.1, "all")[0]
+fewest = regions.smallest_leaking_set(code)["checks"]
+drops = regions.qubit_drops(code, amplitude_damping(0.1))["drop"]
 circuits, labels = build_extraction_circuits(code, [0.0, 20e-6], checks="z")
 ```
 

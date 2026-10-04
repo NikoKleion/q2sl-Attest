@@ -142,6 +142,58 @@ whole leak. `view_labels(code, decoder, checks=...)` labels the records of a sub
 `a`; `representative(code, code.zl_str, a)` returns that string and `type_masks(code, "Z")` the masks made
 of Z generators alone. Any callable from syndrome bits to a Pauli string serves as the decoder, as in `protection.py`.
 
+## A part of the record
+
+```python
+from syndrome_leakage import regions as rg
+
+rg.region_leak(code, kraus, [4, 6])          # (leak, d0, d1) for generators 4 and 6; also "z", "x", "all"
+rg.leaking_sets(code, kraus)                 # the least number of generators that leak, and every such set
+rg.qubit_drops(code, kraus)                  # the leak with each qubit's channel made the identity in turn
+rg.z_region_leak(big, 0.05, [18, 19, 23])    # Z generators of a CSS code of any size, under relaxation
+rg.css_region_leak(big, 0.05, "all")         # X and Z generators together; coherence= for T2
+rg.logical_cover(code)                       # the order, and the qubits on a Z logical of that weight
+rg.smallest_leaking_set(big)                 # the fewest Z generators that leak, by integer programming
+rg.region_order(big, [18, 19, 23])           # the least weight of a Z logical those generators can see
+```
+
+An observer may see some of the generators. Their record is a function of the whole record, so its leak
+is at most the leak of the whole record: a part gives a lower bound, and a part that reads zero does not
+show that the code is protected. `region_leak` computes the record of the chosen generators from the
+products of those generators alone, 2^r of them for r generators, on the exact engine.
+
+Under relaxation a set of Z generators leaks exactly when some product of them has a support that holds a
+Z logical of the active qubit, so no single generator leaks in a code whose generators are lighter than its
+Z distance, and the X generators alone carry nothing. `leaking_sets` finds the smallest such sets by
+enumeration on the exact engine; `smallest_leaking_set` finds one by integer programming at any size, and
+`region_order` gives the least weight of a logical a chosen set can see, or `None`.
+
+`z_region_leak` is exact for Z generators at any code size. The generators touch a set U of qubits, their
+record depends on the codeword only through its restriction to U, and the cost is the number of codewords
+restricted to U times 2^r. It reaches a column of six generators of the distance 11 surface code, 22
+qubits; it refuses a region past `max_terms`.
+
+`css_region_leak` takes X and Z generators together. A product of generators is X on a set B and Z on a set
+A; under relaxation the X and Y factors shrink by a coherence factor per qubit and each Z outside B becomes
+(1 - p) Z + p I, so the record needs only the Z stabilizers and Z logicals that lie on the qubits the chosen
+Z generators touch and off B. The coherence factor is sqrt(1 - p) for amplitude damping and exp(-t / T2) for
+relaxation with a separate T2, passed as `coherence=`; a set that holds X generators depends on T2 and a set
+of Z generators does not. It gives the whole record of the distance 5 surface code, 24 generators on 25
+qubits, and refuses a region whose Z generators touch more than 63 qubits or whose count of terms passes
+`max_terms`.
+
+`qubit_drops` returns the leak, the leak with each qubit noiseless, and the difference. Noise on fewer
+qubits than a Z logical holds gives no leak, so the drops are not shares of the leak and their sum exceeds
+it. A drop is signed. Each term of the leak carries the damping of the qubits of one Z logical and the
+survival 1 - gamma of the other qubits of a stabilizer, so a noiseless qubit removes the terms that need its
+damping and raises the others. At weak damping every drop in the cases run is positive; on the Shor code
+the drop is zero at damping 0.5 and negative past it, and on the distance 3 surface code eight of the nine
+drops are negative at 0.45. On the Shor code the drop of a qubit is its own damping times one minus the sum
+of the dampings of the two other qubits of its block, times the factors of the other blocks, so its sign is
+set by its two block mates. `logical_cover` returns the qubits that lie on a Z logical of least weight inside
+the support of a product of Z generators; a qubit off that cover has a negative drop at weak damping.
+`z_qubit_drops` does the same as `qubit_drops` for Z generators at any size.
+
 ## Hold a state through many rounds
 
 ```python

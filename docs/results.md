@@ -1,8 +1,7 @@
 # Results
 
 Validation runs for the tools in `syndrome_leakage/`. Each section runs one tool and checks it against a
-control: a closed form, a published equation, a second engine, or a hardware measurement. The runs of the
-entropy attestation in `attest/` are in [attest/RESULTS.md](../attest/RESULTS.md).
+control: a closed form, a published equation, a second engine, or a hardware measurement.
 
 ```bash
 python -m syndrome_leakage.experiments                 # every run
@@ -14,11 +13,15 @@ python -m syndrome_leakage.figures                     # the figures, from the s
 Run names: `selftest`, `attack`, `leak_order`, `coherent`, `structure`, `device`, `held_memory`,
 `worst_pair`, `pauli_boundary`, `audit`, `kl_blocks`, `surface`, `protection`, `shor_circuits`,
 `shor_noise`, `estimator`, `disorder`, `readout`, `rounds`, `shor_device_model`, `tensor`, `sampled`,
-`zchecks`, `decoded`. `shor_circuits` needs qiskit and qiskit-aer; `shor_noise` also needs qiskit-ibm-runtime for the
+`zchecks`, `decoded`, `regions`, `circuit_parts`, `circuit_parts_surface`, `drop_sign`. `shor_circuits` needs qiskit and qiskit-aer; `shor_noise` also needs qiskit-ibm-runtime for the
 fake backend and takes about seven minutes. `shor_device_model` reads the circuits and calibration saved
 with the `hardware_shor` measurement. `sampled` needs stim and takes about 25 minutes, most of it on the two
 bivariate bicycle codes. `zchecks` uses scipy for the integer programs, ldpc for the decoded parity and stim
-for the comparison with `sampled`, and takes about a quarter of an hour.
+for the comparison with `sampled`, and takes about a quarter of an hour. `regions` uses scipy for the integer
+programs and takes about eight minutes. `circuit_parts` reads the circuits and calibration saved with the
+`hardware_shor_pinned` measurement and needs qiskit-aer; it samples for about half an hour where
+`results/circuit_parts_counts.json` is absent and computes from that file where it is present.
+`circuit_parts_surface` does the same for the surface code with qiskit-ibm-runtime's fake backend.
 
 All simulation is exact and deterministic except the attack simulation, which samples syndrome records with
 a fixed seed. Where a simulated run uses device parameters they are the medians of IBM `ibm_marrakesh`,
@@ -42,7 +45,7 @@ the package is the attack simulation, which draws syndrome records and carries a
 
 This is the setting for `selftest`, `attack`, `leak_order`, `coherent`, `structure`, `device`,
 `held_memory`, `worst_pair`, `pauli_boundary`, `audit`, `kl_blocks`, `surface`, `protection` and
-`estimator`. The `device` run differs from the others only in taking its channel from measured T1 and T2,
+`estimator`, and for the first part of `regions`. The `device` run differs from the others only in taking its channel from measured T1 and T2,
 where the others use a free parameter. The `disorder` run is the one place where the channel differs from
 qubit to qubit, taking each one's T1 from a backend. The `tensor` run keeps the same channel model and
 computes the L2 distance between the two syndrome distributions by contraction instead of simulating a
@@ -56,7 +59,9 @@ relaxation as a classical process, which needs no quantum state and no condition
 gates and readout. `shor_noise` runs the same circuits under the calibration of the `FakeFez` backend of
 qiskit-ibm-runtime: the transpiler picks the layout and routing on the 156-qubit device, the circuit is
 rebuilt on the qubits it uses, and each of those qubits carries its own T1, T2, gate errors and readout
-error. Both simulators run locally.
+error. Both simulators run locally. `circuit_parts` runs the circuits of the pinned ibm_fez job under the
+model of its own calibration, with the encoder, the window, the extraction or the readout made noiseless.
+`circuit_parts_surface` does it for the distance 3 surface code on the `FakeFez` calibration.
 
 ### Hardware
 
@@ -885,6 +890,196 @@ Limits:
 
 ---
 
+## regions
+
+The leak of a part of the record, from `regions.py`: the generators an observer sees, the fewest generators
+whose joint record leaks, and the leak with one qubit made noiseless. The record of a set of generators is a
+function of the whole record, so its distance is at most the whole record's; Shen and Zhong state this for a
+coarse-grained log. A part therefore gives a lower bound, and a part that reads zero does not show that a code
+is protected. States |0_L> and |1_L>, one round, ideal syndrome measurement, amplitude damping.
+
+Control 1: the record of a set of generators, computed from the products of those generators alone, equals the
+whole record summed over the other bits on every set of generators of four codes, to 1e-12 (test suite).
+
+Control 2: under relaxation a set of Z generators leaks exactly when some product of them has a support that
+holds a Z logical. The leak comes from the classical process of `zchecks`, the cover from the integer program:
+
+| code | sets of Z generators | leak above 1e-12 | product covers a logical | disagree |
+|---|---|---|---|---|
+| Shor [[9,1,3]] | 63 | 27 | 27 | 0 |
+| rotated surface [[9,1,3]] | 15 | 8 | 8 | 0 |
+
+Sets of generators by size, exact engine, amplitude damping 0.1. The Shor code, whole record 0.019683, its Z
+generators 0.019683, its X generators 0.000000:
+
+| generators in the set | sets | that leak | largest leak |
+|---|---|---|---|
+| 1 | 8 | 0 | 0.000000 |
+| 2 | 28 | 0 | 0.000000 |
+| 3 | 56 | 8 | 0.005832 |
+| 4 | 70 | 28 | 0.008748 |
+| 5 | 56 | 38 | 0.013122 |
+| 6 | 28 | 25 | 0.019683 |
+| 7 | 8 | 8 | 0.019683 |
+| 8 | 1 | 1 | 0.019683 |
+
+The eight sets of three are one Z generator from each block, each with 0.005832. The rotated surface code,
+whole record 0.005318, its Z generators 0.005103, its X generators 0.000000:
+
+| generators in the set | sets | that leak | largest leak |
+|---|---|---|---|
+| 1 | 8 | 0 | 0.000000 |
+| 2 | 28 | 3 | 0.002916 |
+| 3 | 56 | 16 | 0.002916 |
+| 4 | 70 | 35 | 0.005103 |
+| 5 | 56 | 40 | 0.005103 |
+| 6 | 28 | 25 | 0.005184 |
+| 7 | 8 | 8 | 0.005233 |
+| 8 | 1 | 1 | 0.005318 |
+
+The three pairs are Z generators: (4, 6) and (5, 7) with 0.002916, and (4, 5) with 0.001458. The X generators
+carry nothing alone and add to the Z generators' 0.005103 when seen with them.
+
+One qubit made noiseless, the others at 0.1:
+
+| code | whole record | least leak without one qubit | largest | least drop | largest drop | sum of the drops |
+|---|---|---|---|---|---|---|
+| Shor [[9,1,3]] | 0.019683 | 0.013851 | 0.013851 | 0.005832 | 0.005832 | 0.052488 |
+| rotated surface [[9,1,3]] | 0.005318 | 0.003219 | 0.004071 | 0.001247 | 0.002098 | 0.012297 |
+
+The largest drop of the surface code is the centre qubit's. Noise on fewer qubits than a Z logical holds gives
+no leak, so a drop is not a share: the drops sum to more than the leak.
+
+Past the exact engine, the fewest Z generators that leak, by integer programming, and the leak of that set from
+the classical process restricted to the qubits it touches, damping 0.05. d/l* is the distance over the largest
+generator weight. Shen and Zhong bound the region a fault must occupy to carry an input-dependent contribution
+by d/l* cells, with l* the number of data qubits one detecting cell covers; that region is where the fault
+acts, and the count here is of the generators an observer has to read:
+
+| code | n | Z generators | d/l* | fewest | proven | qubits touched | leak of the set | whole Z record |
+|---|---|---|---|---|---|---|---|---|
+| rotated surface d=3 | 9 | 4 | 0.75 | 2 | True | 6 | 4.2869e-04 | 7.5020e-04 |
+| rotated surface d=5 | 25 | 12 | 1.25 | 3 | True | 10 | 1.9345e-06 | 1.0657e-05 |
+| rotated surface d=7 | 49 | 24 | 1.75 | 4 | True | 15 | 4.3646e-09 | - |
+| rotated surface d=9 | 81 | 40 | 2.25 | 5 | True | 18 | 3.9391e-11 | - |
+| rotated surface d=11 | 121 | 60 | 2.75 | 6 | True | 22 | 1.7773e-13 | - |
+
+The fewest are (d + 1)/2 at each distance. The leak of the set is a lower bound on the leak of the whole record.
+The `tensor` section gives another, the L2 distance at the same damping, 2.6684e-07 to 1.0384e-16 over distances
+5 to 11; the set's leak is 7, 17, 217 and 1712 times that.
+
+The distance 5 code, damping 0.05: a region grown one Z generator at a time from the best set of three, each
+time by the generator that adds most. The whole Z record is 1.0657e-05:
+
+| generators | leak | of the whole |
+|---|---|---|
+| 3 | 1.9345e-06 | 0.1815 |
+| 4 | 2.3678e-06 | 0.2222 |
+| 5 | 3.0534e-06 | 0.2865 |
+| 6 | 5.6941e-06 | 0.5343 |
+| 7 | 6.0878e-06 | 0.5713 |
+| 8 | 6.6546e-06 | 0.6244 |
+| 9 | 7.4278e-06 | 0.6970 |
+| 10 | 7.6412e-06 | 0.7170 |
+| 11 | 8.2701e-06 | 0.7760 |
+| 12 | 1.0657e-05 | 1.0000 |
+
+The same code with one qubit made noiseless: the drop as a fraction of the whole Z record, qubit 5 r + c at row
+r and column c:
+
+| row | column 0 | column 1 | column 2 | column 3 | column 4 |
+|---|---|---|---|---|---|
+| 0 | 0.0877 | 0.0877 | 0.0905 | 0.0905 | 0.1573 |
+| 1 | 0.2193 | 0.1929 | 0.1858 | 0.2191 | 0.1573 |
+| 2 | 0.2193 | 0.2281 | 0.2563 | 0.2281 | 0.2193 |
+| 3 | 0.1573 | 0.2191 | 0.1858 | 0.1929 | 0.2193 |
+| 4 | 0.1573 | 0.0905 | 0.0905 | 0.0877 | 0.0877 |
+
+The least is 0.0877, the largest 0.2563 at the centre, and the 25 fractions sum to 4.1272.
+
+X and Z generators together past the exact engine, from `regions.css_region_leak`: the distance 5 code,
+damping 0.05. A product of generators is X on a set B and Z on a set A; the X and Y factors shrink by the
+coherence factor and each Z outside B becomes (1 - p) Z + p I, so the record needs the Z stabilizers and Z
+logicals that lie on the touched qubits and off B. The last row is the whole record of the code, 24 generators
+on 25 qubits:
+
+| Z generators | X generators | outcomes | leak | over the Z record |
+|---|---|---|---|---|
+| 12 | 0 | 4096 | 1.0657e-05 | 1.0000 |
+| 12 | 4 | 65536 | 1.1472e-05 | 1.0764 |
+| 12 | 8 | 1048576 | 1.2306e-05 | 1.1547 |
+| 12 | 12 | 16777216 | 1.3193e-05 | 1.2379 |
+
+Control: on the distance 3 code the same engine gives 7.654328e-04 for the whole record and the exact engine
+7.654328e-04. The X generators add 0.2379 to the Z record at distance 5; at distance 3 the Z record is 0.005103
+of 0.005318 at damping 0.1.
+
+X and Y shrink by exp(-t / T2), so a set that holds X generators depends on T2. Decay probability 0.05, the
+twelve Z and eight X generators:
+
+| T2 over T1 | coherence | leak |
+|---|---|---|
+| 2.0 | 0.9747 | 1.2306e-05 |
+| 1.0 | 0.9500 | 1.1332e-05 |
+| 0.5 | 0.9025 | 1.0919e-05 |
+
+The leak over damping^d as the damping falls, d the distance, which tends to the coefficient of the leading
+order:
+
+| code | record | 1e-2 | 1e-3 | 1e-4 |
+|---|---|---|---|---|
+| rotated surface d=3 | Z | 6.7921 | 6.9790 | 6.9979 |
+| rotated surface d=3 | whole | 6.8189 | 6.9818 | 6.9982 |
+| rotated surface d=5 | Z | 47.8156 | 51.5662 | 51.9565 |
+| rotated surface d=5 | whole | 50.0272 | 51.8029 | 51.9803 |
+
+Shen and Zhong give the number of Z logicals of least weight, 8 at distance 3 and 52 at distance 5, state that
+this number is not the coefficient, and leave the coefficient at distance 5 undetermined. The values tend to 7
+at distance 3 and to 52 at distance 5, for the Z record and for the whole record: the order is attained at
+distance 5, and the X generators do not change the leading coefficient. Between the two distances the leak at
+damping 0.01 falls by a factor of 1363.
+
+A drop is signed. The least and the largest drop as a fraction of the leak, and the number of qubits whose
+drop is negative, by damping strength:
+
+| code | damping | leak | least | largest | negative |
+|---|---|---|---|---|---|
+| Shor [[9,1,3]] | 0.05 | 2.8936e-03 | 0.3158 | 0.3158 | 0 |
+| Shor [[9,1,3]] | 0.20 | 1.1059e-01 | 0.2500 | 0.2500 | 0 |
+| Shor [[9,1,3]] | 0.35 | 3.1791e-01 | 0.1538 | 0.1538 | 0 |
+| Shor [[9,1,3]] | 0.45 | 4.0934e-01 | 0.0606 | 0.0606 | 0 |
+| Shor [[9,1,3]] | 0.50 | 4.2188e-01 | 0.0000 | 0.0000 | 0 |
+| Shor [[9,1,3]] | 0.60 | 3.7325e-01 | -0.1667 | -0.1667 | 9 |
+| rotated surface [[9,1,3]] | 0.05 | 7.6543e-04 | 0.2612 | 0.4123 | 0 |
+| rotated surface [[9,1,3]] | 0.20 | 3.1283e-02 | 0.1727 | 0.3540 | 0 |
+| rotated surface [[9,1,3]] | 0.35 | 9.7638e-02 | 0.0499 | 0.2759 | 0 |
+| rotated surface [[9,1,3]] | 0.45 | 1.3466e-01 | -0.0686 | 0.2076 | 8 |
+| rotated surface [[9,1,3]] | 0.50 | 1.4453e-01 | -0.1461 | 0.1668 | 8 |
+| rotated surface [[9,1,3]] | 0.60 | 1.4550e-01 | -0.3218 | 0.0935 | 8 |
+| rotated surface d=5, Z record | 0.05 | 1.0657e-05 | 0.0877 | 0.2563 | 0 |
+| rotated surface d=5, Z record | 0.20 | 3.3526e-03 | 0.0437 | 0.1701 | 0 |
+| rotated surface d=5, Z record | 0.45 | 2.7972e-02 | 0.0180 | 0.0499 | 0 |
+
+On the Shor code the leak is F^3 with F = 1 - (1 - g)^3 - g^3, and F^2 (1 - (1 - g)^2) with one qubit
+noiseless; the two are equal at damping 0.5. An idle of 100 us at a T1 of 100 to 250 us is a damping of
+0.33 to 0.63, so the range where a drop is negative is inside the hardware runs.
+
+Coverage:
+
+- Amplitude damping, one round, ideal syndrome measurement, the two logical basis states.
+- The leak of a part is a lower bound on the leak of the whole record. At distance 5 the best three generators
+  carry 0.1815 of the Z record and the last generator added takes it from 0.7760 to 1.0000.
+- Sets that mix X and Z generators past the exact engine are read under relaxation only, a decay probability
+  and a coherence factor per qubit. The whole record at distance 5 is 2^24 outcomes; distance 7 has 48
+  generators and is out of reach as a whole.
+- The limits 7 and 52 are read off three dampings each; they are not derived.
+- The growth by one generator is one path. It is not the best set of each size.
+- The drops rank qubits at weak damping. Past a damping of about 0.4 a noiseless qubit raises the leak for
+  some qubits of the surface code and, past 0.5, for every qubit of the Shor code.
+- Surface codes up to distance 11. The integer program proves each count; at distance 11 it takes 108 s.
+
+---
+
 ## shor_circuits
 
 The Shor-code circuits of `hardware.build_shor_circuits` on the local Aer simulator: nine data qubits and
@@ -1346,6 +1541,222 @@ device: with both states on the same qubits and the same gates, the records diff
 and agree at zero delay. The two circuits of a pair ran one after the other in one job, so drift within the
 job is the one difference between them left uncontrolled. The error the round makes beyond its calibration
 is the same fraction on a second layout. One code, one backend, one job.
+
+---
+
+## drop_sign
+
+The sign of the drop of `regions.qubit_drops`: the leak minus the leak with one qubit made noiseless. Each
+term of the leak under relaxation carries the damping of every qubit of one Z logical and the survival
+1 - gamma of the other qubits of a stabilizer, so a noiseless qubit removes the terms that need its damping and
+raises the others, and the sign depends on which wins. Shen and Zhong describe one side of this for unequal
+rates: at large exposure the fastest qubits "have already decayed and stop contributing". Exact engine,
+amplitude damping, one round, ideal measurement.
+
+Weak damping, 0.001 on every qubit. A qubit that lies on a Z logical of least weight inside the support of a
+product of Z generators has a positive drop; a qubit that lies on none has a negative one:
+
+| code | order | on a logical | off | drop > 0 | drop < 0 | disagree | least drop over the leak |
+|---|---|---|---|---|---|---|---|
+| 3-qubit repetition | 1 | 3 | 0 | 3 | 0 | 0 | 0.3330 |
+| [[4,1,2]] | 2 | 4 | 0 | 4 | 0 | 0 | 0.4995 |
+| Hamming [[7,1,2]] | 3 | 6 | 1 | 6 | 1 | 0 | -0.0001 |
+| Shor [[9,1,3]] | 3 | 9 | 0 | 9 | 0 | 0 | 0.3330 |
+| rotated surface [[9,1,3]] | 3 | 9 | 0 | 9 | 0 | 0 | 0.2852 |
+
+Equal damping on every qubit: the damping at which a qubit's drop first changes sign, and that damping as an
+idle time over T1:
+
+| code | qubits | damping | idle / T1 |
+|---|---|---|---|
+| 3-qubit repetition | all three | 0.5000 | 0.6931 |
+| [[4,1,2]] | all four | 0.5000 | 0.6931 |
+| Hamming [[7,1,2]] | all but qubit 3 | 0.5193 | 0.7325 |
+| Shor [[9,1,3]] | all nine | 0.5000 | 0.6931 |
+| rotated surface [[9,1,3]] | the four edge qubits | 0.3968 | 0.5055 |
+| rotated surface [[9,1,3]] | the four corner qubits | 0.4323 | 0.5662 |
+| rotated surface [[9,1,3]] | the centre qubit | 0.7122 | 1.2455 |
+
+Qubit 3 of the Hamming code has a negative drop at every damping.
+
+The Shor code in closed form. Its leak is the product over the three blocks of F = 1 - prod(1 - gamma) -
+prod(gamma), and the drop of qubit q is gamma_q (1 - gamma_a - gamma_b) times the F of the other two blocks,
+a and b the other two qubits of its block: the sign is set by the two block mates alone. Over 40 draws of nine
+rates between 0.02 and 0.95 the engine differs from that form by at most 3.3e-16.
+
+The Z record of the distance 5 surface code, equal damping:
+
+| damping | leak | least drop over the leak | largest | negative |
+|---|---|---|---|---|
+| 0.45 | 2.7972e-02 | 0.0180 | 0.0499 | 0 |
+| 0.60 | 2.3928e-02 | -0.1751 | -0.0720 | 25 |
+| 0.75 | 7.1678e-03 | -0.7900 | -0.3151 | 25 |
+| 0.90 | 2.2440e-04 | -3.0175 | -1.1267 | 25 |
+
+The Shor code at the T1 of the data qubits of job `daquif6ekp0c73arbd70`, 67 to 166 us, amplitude damping over
+the idle alone:
+
+| delay us | damping from | to | leak | least drop over the leak | largest | negative |
+|---|---|---|---|---|---|---|
+| 20 | 0.1134 | 0.2571 | 0.0715 | 0.1130 | 0.3490 | 0 |
+| 50 | 0.2599 | 0.5243 | 0.3339 | -0.0114 | 0.2218 | 1 |
+| 100 | 0.4523 | 0.7737 | 0.3902 | -0.3418 | -0.0016 | 9 |
+| 200 | 0.7000 | 0.9488 | 0.0907 | -1.6687 | -0.7364 | 9 |
+| 400 | 0.9100 | 0.9974 | 0.0016 | -9.4761 | -5.2988 | 9 |
+
+At the job's 100 us delay every one of the nine drops is negative: in this model, making any one data qubit
+noiseless raises the leak.
+
+Coverage:
+
+- Five codes of at most nine qubits on the exact engine, and the Z record of one code of 25 qubits.
+- One code, the Hamming code, has a qubit off the cover of least-weight logicals; the rule at weak damping
+  rests on that qubit and on the 31 qubits that are on a cover.
+- Damping over the idle alone in the last table; the gates and the readout of the circuit are not in it.
+
+---
+
+## circuit_parts
+
+The pinned Shor round of `hardware_shor_pinned` under the gate-level model built from the calibration read
+before submission, with parts of the circuit made noiseless, from `gate_level.run_round(..., ideal=)`. The two
+barriers of the circuit split it into the encoder, the window and the extraction; the readout is the fourth
+part. At 100 us the encoder holds 66 gates and 23 idles, the window 15 idles and the extraction 128 gates and
+31 idles, on 15 qubits. 8000 shots per circuit, seeds spaced by more than the shot count, the same seeds in
+every setting. The sampled counts are in `results/circuit_parts_counts.json` and the tables are computed from
+them.
+
+Control: with every part noiseless, every circuit returns the trivial syndrome on every shot.
+
+Distance between the two logical states' records with one part made noiseless. The floor is the mean distance
+of two samples of one record at this shot count, for the setting with every part noisy:
+
+| delay us | every part noisy | without encoder | without window | without extraction | without readout | floor |
+|---|---|---|---|---|---|---|
+| 0 | 0.0116 | 0.0140 | 0.0116 | 0.0061 | 0.0121 | 0.0121 |
+| 20 | 0.0426 | 0.0436 | 0.0123 | 0.0499 | 0.0450 | 0.0296 |
+| 50 | 0.2450 | 0.2596 | 0.0120 | 0.2704 | 0.2501 | 0.0381 |
+| 100 | 0.3525 | 0.3680 | 0.0145 | 0.3999 | 0.3648 | 0.0404 |
+
+With one part noisy alone:
+
+| delay us | every part noisy | only encoder | only window | only extraction | only readout |
+|---|---|---|---|---|---|
+| 0 | 0.0116 | 0.0034 | 0.0000 | 0.0106 | 0.0023 |
+| 20 | 0.0426 | 0.0060 | 0.0546 | 0.0086 | 0.0047 |
+| 50 | 0.2450 | 0.0026 | 0.2989 | 0.0136 | 0.0070 |
+| 100 | 0.3525 | 0.0050 | 0.4335 | 0.0087 | 0.0031 |
+
+The window carries the distance. With the window noiseless the distance is 0.0120 to 0.0145 at every delay,
+at its own floor of 0.0125 with a permutation p of 0.223 to 0.530. The window alone gives more than every part
+together. The encoder, the extraction and the readout alone give 0.0023 to 0.0136, each at its own floor; of
+their twelve permutation tests two have p under 0.05 (0.048 and 0.025), and a readout flip in this model does
+not depend on the state.
+
+The distance of a setting minus the distance with every part noisy, with the 2.5 to 97.5 percent interval of
+that difference over 600 resamplings of both records:
+
+| delay us | setting | difference | from | to |
+|---|---|---|---|---|
+| 50 | without encoder | 0.0146 | -0.0071 | 0.0345 |
+| 50 | without window | -0.2330 | -0.2438 | -0.2117 |
+| 50 | without extraction | 0.0254 | 0.0039 | 0.0461 |
+| 50 | without readout | 0.0051 | -0.0155 | 0.0280 |
+| 50 | only window | 0.0539 | 0.0331 | 0.0750 |
+| 100 | without encoder | 0.0155 | -0.0043 | 0.0376 |
+| 100 | without window | -0.3380 | -0.3504 | -0.3176 |
+| 100 | without extraction | 0.0474 | 0.0271 | 0.0667 |
+| 100 | without readout | 0.0122 | -0.0089 | 0.0314 |
+| 100 | only window | 0.0810 | 0.0604 | 0.1003 |
+
+The distance rises when the extraction is noiseless, by 0.0254 at 50 us and 0.0474 at 100 us, with intervals
+that exclude zero. The rises with the encoder or the readout noiseless have intervals that include zero. So the
+noise of the extraction lowers the distance the window produces: the difference with a part made noiseless is
+signed, as for a qubit in the `regions` section. Shen and Zhong state the direction: additional
+state-independent error "randomises both classes together and can reduce" distinguishability. They place the
+exposure in the idle time of the syndrome round by its duration, about 2.5 percent of it in the two-qubit
+layers; here the parts are switched off in the model one at a time.
+
+The trivial syndrome's probability, every part noisy and the window noiseless:
+
+| delay us | 0_L | 1_L | 0_L, window noiseless | 1_L, window noiseless |
+|---|---|---|---|---|
+| 0 | 0.8384 | 0.8439 | 0.8384 | 0.8439 |
+| 20 | 0.4586 | 0.4551 | 0.8387 | 0.8376 |
+| 50 | 0.2806 | 0.2179 | 0.8360 | 0.8365 |
+| 100 | 0.2696 | 0.1726 | 0.8431 | 0.8369 |
+
+Coverage:
+
+- The model is split, not the device. The model's distance at 50 and 100 us is 0.2450 and 0.3525, where the
+  device gave 0.1673 and 0.2337 in `hardware_shor_pinned`.
+- 8000 shots per circuit. A distance at its floor is not resolved, so the encoder, the extraction and the
+  readout alone are bounded by their floors, 0.0038 to 0.0095, and not shown to be zero.
+- A part is a position in the circuit. A qubit that idles between the gates of the extraction counts as
+  extraction, and relaxation during a gate counts with that gate.
+- The resampled distances carry their sampling floor a second time, so the intervals are a guide to the sign of
+  a difference and not a calibrated test.
+- One code, one job's circuits, one calibration.
+
+---
+
+## circuit_parts_surface
+
+The analysis of `circuit_parts` on a second code: the distance 3 rotated surface code, one round of its four Z
+generators from `hardware.build_extraction_circuits`, 9 data and 4 ancilla qubits, transpiled for the `FakeFez`
+backend of qiskit-ibm-runtime with every circuit on one layout (transpiler seed 15, the fewest two-qubit gates
+over seeds 11 to 16, 61 of them), under the model built from that backend's calibration. The data qubits have T1
+of 63 to 209 us. At 100 us the encoder holds 83 gates and 24 idles, the window 13 idles and the extraction 142
+gates and 32 idles. 8000 shots per circuit; the counts are in `results/circuit_parts_surface_counts.json`.
+
+Control: with every part noiseless, every circuit returns the trivial syndrome on every shot.
+
+Distance between the two logical states' records with one part made noiseless, and the floor of the setting
+with every part noisy:
+
+| delay us | every part noisy | without encoder | without window | without extraction | without readout | floor |
+|---|---|---|---|---|---|---|
+| 0 | 0.0128 | 0.0074 | 0.0128 | 0.0119 | 0.0136 | 0.0120 |
+| 20 | 0.0214 | 0.0257 | 0.0105 | 0.0160 | 0.0210 | 0.0195 |
+| 50 | 0.0833 | 0.0896 | 0.0142 | 0.0949 | 0.0846 | 0.0221 |
+| 100 | 0.1011 | 0.1047 | 0.0105 | 0.1104 | 0.1058 | 0.0224 |
+
+With one part noisy alone:
+
+| delay us | every part noisy | only encoder | only window | only extraction | only readout |
+|---|---|---|---|---|---|
+| 0 | 0.0128 | 0.0095 | 0.0000 | 0.0080 | 0.0024 |
+| 20 | 0.0214 | 0.0066 | 0.0242 | 0.0110 | 0.0044 |
+| 50 | 0.0833 | 0.0086 | 0.0996 | 0.0086 | 0.0041 |
+| 100 | 0.1011 | 0.0117 | 0.1166 | 0.0085 | 0.0036 |
+
+As on the Shor round, the window carries the distance: with it noiseless the distance is 0.0105 to 0.0142 at
+every delay, at its own floor (permutation p 0.198 to 0.670), and the encoder, the extraction and the readout
+alone are at their floors, with one of twelve tests at p 0.035. The distance at 20 us, 0.0214, is not resolved
+(p 0.292).
+
+The distance of a setting minus the distance with every part noisy, with the 2.5 to 97.5 percent interval over
+600 resamplings:
+
+| delay us | setting | difference | from | to |
+|---|---|---|---|---|
+| 50 | without window | -0.0690 | -0.0811 | -0.0494 |
+| 50 | without extraction | 0.0116 | -0.0103 | 0.0305 |
+| 50 | only window | 0.0164 | -0.0038 | 0.0354 |
+| 100 | without window | -0.0906 | -0.1031 | -0.0706 |
+| 100 | without extraction | 0.0092 | -0.0116 | 0.0296 |
+| 100 | only window | 0.0155 | -0.0035 | 0.0361 |
+
+The window alone reads above every part together and the distance rises with the extraction noiseless, as on
+the Shor round, but here each interval includes zero: at a distance of 0.1 and 8000 shots the sign of those
+differences is not resolved.
+
+Coverage:
+
+- A model on a fake backend's calibration; no device run of this code exists here.
+- 8000 shots per circuit; the differences between settings other than the window's are inside the sampling
+  noise.
+- One round, Z generators only, one layout.
 
 ---
 

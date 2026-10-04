@@ -1,6 +1,6 @@
 # Engines
 
-Six routes compute the dependence of a code's syndrome on its encoded logical state. Each returns a
+Eight routes compute the dependence of a code's syndrome on its encoded logical state. Each returns a
 different quantity, and each is limited by a different cost.
 
 | engine | returns | cost set by | reach |
@@ -11,6 +11,8 @@ different quantity, and each is limited by a different cost.
 | `zchecks.leak_order` | the leak order | an integer program | [[144,12,12]] in minutes |
 | `tensor.l2_leak` | the L2 distance, and the leak from below | the width of a tensor network | surface d=11, 121 qubits |
 | `sampled.leak_from_records`, `zchecks.leak_from_z` | the leak from below, through a statistic of sampled records | the number of shots | any size |
+| `regions.z_region_leak` | the leak of chosen Z generators, and the leak from below | the codewords on the qubits those generators touch, times 2^(generators) | six generators of surface d=11, 22 qubits |
+| `regions.css_region_leak` | the leak of chosen X and Z generators under relaxation, and the leak when every generator is chosen | 2^(generators) times the Z stabilizers and logicals on the touched qubits and off each X product | the whole record of surface d=5, 25 qubits |
 
 ## Exact simulation
 
@@ -177,6 +179,17 @@ of codewords times the number of Z syndromes, which reaches the distance 5 surfa
 Under this process x restricted to R is uniform on a coset of the restricted code, and the two logical
 states' syndromes differ exactly when a Z stabilizer restricted to R is a Z logical of the active qubit.
 The least such |R| is the order of the enumeration and of the integer program above.
+
+The record of a chosen set of Z generators needs less. With U the qubits those generators touch, x
+restricted to U is uniform over the row span of Hx restricted to U, shifted by x_L restricted to U, and
+`regions.z_region_dist` takes the mean of the characteristic function over that span, whose size is set by
+U and not by the code. With every Z generator chosen it returns `exact_z_distribution`.
+
+`regions.css_region_dist` reaches the same record by the dual sum and takes X generators as well. The
+expectation of a product of generators, X on B and Z on A, is the product of the coherence factors on B
+times a sum over the Z stabilizers and Z logicals R that lie inside A and off B, each weighted by p on R and
+1 - p on the rest of A outside B, with a sign for the logical. On sets of Z generators the two sums agree to
+1e-15 on the distance 5 to 11 surface codes.
 
 The statistics are `"z_weight"`, the number of Z checks that fire; `"parity"`, the parity of the decoded X
 error against the active Z logical, from ldpc's BP+OSD or PyMatching; and `"parity_weight"`, the two

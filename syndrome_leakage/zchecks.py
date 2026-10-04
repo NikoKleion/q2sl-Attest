@@ -31,6 +31,66 @@ def _mod2_matmul(a, b):
     return (a.astype(np.float32) @ b.astype(np.float32)).astype(np.int64) % 2
 
 
+def _row_basis(M):
+    """A reduced basis of the GF(2) row space of M."""
+    B = np.atleast_2d(np.array(M, np.uint8) % 2)
+    r = 0
+    for c in range(B.shape[1]):
+        piv = next((i for i in range(r, len(B)) if B[i, c]), None)
+        if piv is None:
+            continue
+        B[[r, piv]] = B[[piv, r]]
+        for i in range(len(B)):
+            if i != r and B[i, c]:
+                B[i] ^= B[r]
+        r += 1
+    return B[:r]
+
+
+def _null_space(M):
+    """A basis of {c : M c = 0} over GF(2), one vector per row."""
+    M = np.atleast_2d(np.array(M, np.uint8) % 2)
+    rows, cols = M.shape
+    pivots, r = [], 0
+    for c in range(cols):
+        piv = next((i for i in range(r, rows) if M[i, c]), None)
+        if piv is None:
+            continue
+        M[[r, piv]] = M[[piv, r]]
+        for i in range(rows):
+            if i != r and M[i, c]:
+                M[i] ^= M[r]
+        pivots.append(c)
+        r += 1
+    out = []
+    for f in (c for c in range(cols) if c not in pivots):
+        v = np.zeros(cols, np.uint8)
+        v[f] = 1
+        for i, c in enumerate(pivots):
+            v[c] = M[i, f]
+        out.append(v)
+    return np.array(out, np.uint8).reshape(len(out), cols)
+
+
+def _row_space(basis):
+    """Every GF(2) combination of the rows of a basis, one per row."""
+    r = len(basis)
+    return _mod2_matmul((np.arange(2 ** r)[:, None] >> np.arange(r)) & 1, basis).astype(np.uint8)
+
+
+def _mean_character(T, X, f, chunk=1 << 22):
+    """For each row a of T, the mean over the codewords x in X of the product over q in x of f_q where a has q."""
+    logf, neg, zero = T * np.log(np.abs(np.where(f == 0, 1.0, f))), T * (f < 0), T * (f == 0)
+    total, step = np.zeros(len(T)), max(1, chunk // len(T))
+    for i in range(0, len(X), step):
+        x = X[i:i + step].T.astype(np.float64)
+        chi = np.exp(logf @ x)
+        chi *= 1.0 - 2.0 * ((neg @ x) % 2)
+        chi[(zero @ x) > 0] = 0.0
+        total += chi.sum(axis=1)
+    return total / len(X)
+
+
 def sample_syndromes(code, p_reset, shots, seed=0, chunk=65536, errors=False):
     """(s0, s1): Z syndromes of |0_L> and |1_L>, one row per shot, one column per Z generator in the code's order."""
     P = css_parts(code)
@@ -85,13 +145,10 @@ def exact_z_distribution(code, p_reset, bit, max_terms=2 ** 26):
     span = np.unique(_mod2_matmul(((np.arange(2 ** len(Hx))[:, None] >> np.arange(len(Hx))) & 1), Hx), axis=0)
     if len(span) * 2 ** mz > max_terms:
         raise ValueError(f"{code.name}: {len(span)} codewords times 2^{mz} syndromes is too many")
-    X = (span.astype(np.uint8) ^ (bit * xl)).astype(np.float64)
+    X = span.astype(np.uint8) ^ (bit * xl)
     T = _mod2_matmul((np.arange(2 ** mz)[:, None] >> np.arange(mz)) & 1, Hz).astype(np.float64)
     f = 1.0 - 2.0 * np.broadcast_to(np.asarray(p_reset, float), (n,))
-    chi = np.exp((T * np.log(np.abs(np.where(f == 0, 1.0, f)))) @ X.T)
-    chi *= 1.0 - 2.0 * (((T * (f < 0)) @ X.T) % 2)
-    chi[((T * (f == 0)) @ X.T) > 0] = 0.0
-    d = np.clip(np.real(walsh_hadamard(chi.mean(axis=1))) / 2 ** mz, 0.0, None)
+    d = np.clip(np.real(walsh_hadamard(_mean_character(T, X, f))) / 2 ** mz, 0.0, None)
     return d / d.sum()
 
 
@@ -207,8 +264,9 @@ def _gf2_solvable(A, b):
     return not any(M[i, -1] and not M[i, :-1].any() for i in range(rows))
 
 
-def _milp_min_weight(n, parity_rows, rhs, extra=None, time_limit=None):
-    """min |a| over binary a with parity_rows a = rhs mod 2, by HiGHS through scipy.optimize.milp."""
+def _milp_min_weight(n, parity_rows, rhs, extra=None, time_limit=None, count="weight"):
+    """min |a| over binary a with parity_rows a = rhs mod 2, by HiGHS through scipy.optimize.milp. With extra, a lies
+    inside the support of a product of the rows of extra, and count="checks" minimises the rows in that product."""
     try:
         from scipy.optimize import Bounds, LinearConstraint, milp
     except ImportError as e:
@@ -248,7 +306,10 @@ def _milp_min_weight(n, parity_rows, rhs, extra=None, time_limit=None):
             hi.append(0.0)
         ub += [1.0] * mz + [1.0] * n + [np.floor(Hz[:, q].sum() / 2) + 1 for q in range(n)]
     c = np.zeros(nv)
-    c[:n] = 1.0
+    if count == "checks":
+        c[base:base + mz] = 1.0
+    else:
+        c[:n] = 1.0
     options = {"disp": False}
     if time_limit is not None:
         options["time_limit"] = float(time_limit)
@@ -256,7 +317,8 @@ def _milp_min_weight(n, parity_rows, rhs, extra=None, time_limit=None):
                bounds=Bounds(np.zeros(nv), np.array(ub)), options=options)
     a = None if res.x is None else np.rint(res.x[:n]).astype(np.uint8)
     bound = getattr(res, "mip_dual_bound", None)
-    return {"status": int(res.status), "weight": None if a is None else int(a.sum()), "a": a,
+    y = None if res.x is None or extra is None else np.rint(res.x[base:base + mz]).astype(np.uint8)
+    return {"status": int(res.status), "weight": None if a is None else int(a.sum()), "a": a, "y": y,
             "dual_bound": None if bound is None or not np.isfinite(bound) else float(bound),
             "optimal": res.status == 0, "infeasible": res.status == 2}
 

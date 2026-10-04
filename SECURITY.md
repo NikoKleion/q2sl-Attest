@@ -8,8 +8,6 @@ Two kinds of report belong here rather than in a public issue.
 - A result that understates a leak: a code reported as protected when its syndrome depends on the
   logical state, or a leak reported smaller than the true one. A protected result may be relied on as a
   property of a code, so an error in that direction is treated as a security issue.
-- An attested min-entropy above the entropy the source holds, which would let extraction produce bits
-  that are not uniform.
 
 A result that overstates a leak, a crash, or a wrong number in a direction that cannot mislead someone
 about protection can go in a public issue.

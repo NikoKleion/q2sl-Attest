@@ -1,0 +1,63 @@
+the 8 circuits of job daquif6ekp0c73arbd70 as executed on ibm_fez, 15 qubits, under the model built from the calibration read before submission
+parts, split by the two barriers of the circuit: encoder, window (the delay), extraction, and readout
+  encoder     66 gates and  23 idles at 100 us
+  window       0 gates and  15 idles at 100 us
+  extraction 128 gates and  31 idles at 100 us
+8000 shots per circuit, seeds spaced by more than the shot count, the same seeds in every setting
+
+control, every part ideal: the trivial syndrome on every shot of every circuit: True
+
+distance between the two logical states' records; floor is the mean distance of two samples of one
+record at this shot count, from the setting with every part noisy
+
+  one part made ideal
+  delay us                 all     without encoder      without window  without extraction     without readout    floor
+         0              0.0116              0.0140              0.0116              0.0061              0.0121   0.0121
+        20              0.0426              0.0436              0.0123              0.0499              0.0450   0.0296
+        50              0.2450              0.2596              0.0120              0.2704              0.2501   0.0381
+       100              0.3525              0.3680              0.0145              0.3999              0.3648   0.0404
+
+  one part noisy alone
+  delay us                 all        only encoder         only window     only extraction        only readout    floor
+         0              0.0116              0.0034              0.0000              0.0106              0.0023   0.0121
+        20              0.0426              0.0060              0.0546              0.0086              0.0047   0.0296
+        50              0.2450              0.0026              0.2989              0.0136              0.0070   0.0381
+       100              0.3525              0.0050              0.4335              0.0087              0.0031   0.0404
+
+  each setting against its own floor: distance, floor and permutation p over 400 reassignments
+  setting                                 0 us                   20 us                   50 us                  100 us
+  all                    0.0116  0.0121  0.515   0.0426  0.0296  0.003   0.2450  0.0381  0.000   0.3525  0.0404  0.000
+  without encoder        0.0140  0.0106  0.110   0.0436  0.0291  0.003   0.2596  0.0381  0.000   0.3680  0.0401  0.000
+  without window         0.0116  0.0121  0.515   0.0123  0.0126  0.495   0.0120  0.0125  0.530   0.0145  0.0125  0.223
+  without extraction     0.0061  0.0069  0.615   0.0499  0.0277  0.000   0.2704  0.0375  0.000   0.3999  0.0394  0.000
+  without readout        0.0121  0.0112  0.328   0.0450  0.0294  0.003   0.2501  0.0382  0.000   0.3648  0.0398  0.000
+  only encoder           0.0034  0.0049  0.843   0.0060  0.0048  0.175   0.0026  0.0048  0.965   0.0050  0.0045  0.315
+  only window            0.0000  0.0000  1.000   0.0546  0.0263  0.000   0.2989  0.0368  0.000   0.4335  0.0392  0.000
+  only extraction        0.0106  0.0095  0.305   0.0086  0.0094  0.575   0.0136  0.0093  0.048   0.0087  0.0094  0.562
+  only readout           0.0023  0.0039  0.910   0.0047  0.0038  0.205   0.0070  0.0039  0.025   0.0031  0.0039  0.665
+
+  the distance of a setting minus the distance with every part noisy, and the 2.5 to 97.5 percent
+  interval of that difference over 600 resamplings of both records
+  delay us setting               difference     from       to
+        20 without encoder           0.0010  -0.0160   0.0160
+        20 without window           -0.0304  -0.0465  -0.0206
+        20 without extraction        0.0073  -0.0091   0.0206
+        20 without readout           0.0024  -0.0118   0.0174
+        20 only window               0.0120  -0.0084   0.0235
+        50 without encoder           0.0146  -0.0071   0.0345
+        50 without window           -0.2330  -0.2438  -0.2117
+        50 without extraction        0.0254   0.0039   0.0461
+        50 without readout           0.0051  -0.0155   0.0280
+        50 only window               0.0539   0.0331   0.0750
+       100 without encoder           0.0155  -0.0043   0.0376
+       100 without window           -0.3380  -0.3504  -0.3176
+       100 without extraction        0.0474   0.0271   0.0667
+       100 without readout           0.0122  -0.0089   0.0314
+       100 only window               0.0810   0.0604   0.1003
+
+  the trivial syndrome's probability for |0_L> and |1_L>, every part noisy and the window ideal
+  delay us      0_L      1_L  0_L, ideal window  1_L, ideal window
+         0   0.8384   0.8439             0.8384             0.8439
+        20   0.4586   0.4551             0.8387             0.8376
+        50   0.2806   0.2179             0.8360             0.8365
+       100   0.2696   0.1726             0.8431             0.8369

@@ -1416,13 +1416,400 @@ def decoded(gammas=(0.2, 0.05), low=(0.005, 0.01)):
     print("   the stored representative and its range over the representatives made of Z generators")
 
 
+def regions(gamma=0.1, far=0.05):
+    # the leak of parts of the record: chosen generators, the smallest sets that leak, one qubit made ideal
+    import importlib.util
+    import itertools
+    from . import expectations as ex
+    from . import regions as rg
+    from . import zchecks as zc
+    from .codes import shor_code
+    from .css import css_strings
+    K = amplitude_damping(gamma)
+    have_scipy = importlib.util.find_spec("scipy") is not None
+
+    print(f"1. Parts of the record, exact engine, amplitude damping {gamma} on every qubit")
+    print()
+    for code in (shor_code(), ex.surface_code_3()):
+        m = len(code.stab_strings)
+        whole, d0, d1 = ex.population_leak(code, K)
+        print(f"{code.name}: {m} generators " + " ".join(code.stab_strings))
+        print(f"  whole record {whole:.6f}   Z generators {rg.region_leak(code, K, 'z')[0]:.6f}   "
+              f"X generators {rg.region_leak(code, K, 'x')[0]:.6f}")
+        print(f"  {'generators in the set':>22} {'sets':>5} {'that leak':>10} {'largest leak':>13}  on")
+        for size in range(1, m + 1):
+            leaks = [(rg.region_leak(code, K, list(c))[0], c) for c in itertools.combinations(range(m), size)]
+            top = max(leaks)
+            print(f"  {size:22d} {len(leaks):5d} {sum(v > 1e-12 for v, _c in leaks):10d} {top[0]:13.6f}  "
+                  f"{top[1] if top[0] > 1e-12 else '-'}")
+        small = rg.leaking_sets(code, K)
+        print(f"  smallest sets that leak, {small['size']} generators: "
+              + ", ".join(f"{c} {v:.6f}" for c, v in small["sets"]))
+        dr = rg.qubit_drops(code, K)
+        print("  leak with one qubit made ideal: " + " ".join(f"{w:.6f}" for w in dr["without"]))
+        print("  drop                          : " + " ".join(f"{w:.6f}" for w in dr["drop"])
+              + f"   sum {sum(dr['drop']):.6f}")
+        print()
+
+    print("2. A set of Z generators leaks exactly when a product of them covers a Z logical")
+    print()
+    if not have_scipy:
+        print("  requires scipy")
+    else:
+        print(f"  {'code':28} {'sets of Z generators':>21} {'leak above 1e-12':>17} {'product covers a logical':>25} "
+              f"{'disagree':>9}")
+        for code in (shor_code(), ex.surface_code_3()):
+            zs = zc.css_parts(code)["zpos"]
+            sets = [c for size in range(1, len(zs) + 1) for c in itertools.combinations(zs, size)]
+            leak = [rg.z_region_leak(code, gamma, list(c))[0] > 1e-12 for c in sets]
+            cover = [rg.region_order(code, list(c))["order"] is not None for c in sets]
+            print(f"  {code.name:28} {len(sets):21d} {sum(leak):17d} {sum(cover):25d} "
+                  f"{sum(a != b for a, b in zip(leak, cover)):9d}")
+    print()
+
+    print(f"3. Past the exact engine: the fewest Z generators that leak, and their leak at damping {far}")
+    print()
+    surf = {d: css_strings(*ex.rotated_surface_code(d), f"rotated surface d={d}") for d in (3, 5, 7, 9, 11)}
+    if not have_scipy:
+        print("  requires scipy")
+    else:
+        print(f"  {'code':24} {'n':>4} {'Z gen':>6} {'d/l*':>5} {'fewest':>7} {'proven':>7} {'qubits touched':>15} "
+              f"{'leak of the set':>16} {'whole Z record':>15}")
+        for d, code in surf.items():
+            P = zc.css_parts(code)
+            sm = rg.smallest_leaking_set(code)
+            leak = rg.z_region_leak(code, far, sm["checks"])[0]
+            touched = int(P["Hz"][[P["zpos"].index(g) for g in sm["checks"]]].any(axis=0).sum())
+            whole = f"{rg.z_region_leak(code, far, 'z')[0]:15.4e}" if d <= 5 else f"{'-':>15}"
+            print(f"  {code.name:24} {code.n:4d} {len(P['zpos']):6d} {d / int(P['Hz'].sum(axis=1).max()):5.2f} "
+                  f"{sm['size']:7d} {str(sm['optimal']):>7} {touched:15d} {leak:16.4e} {whole}")
+    print()
+
+    code = surf[5]
+    zs = zc.css_parts(code)["zpos"]
+    whole = rg.z_region_leak(code, far, "z")[0]
+    print(f"4. {code.name}: a region grown one Z generator at a time, each time by the one that adds most,")
+    print(f"   from the best set of three; damping {far}; whole Z record {whole:.4e}")
+    print()
+    start = max((rg.z_region_leak(code, far, list(c))[0], c) for c in itertools.combinations(zs, 3))
+    region, leak = list(start[1]), start[0]
+    print(f"  {'generators':>10} {'leak':>12} {'of the whole':>13}  added")
+    print(f"  {len(region):10d} {leak:12.4e} {leak / whole:13.4f}  {tuple(region)}")
+    while len(region) < len(zs):
+        leak, g = max((rg.z_region_leak(code, far, region + [g])[0], g) for g in zs if g not in region)
+        region.append(g)
+        print(f"  {len(region):10d} {leak:12.4e} {leak / whole:13.4f}  {g}")
+    print()
+
+    print(f"5. {code.name}: the whole Z record with one qubit made ideal, damping {far}; qubit d r + c at row r, column c")
+    print()
+    dr = rg.z_qubit_drops(code, far, "z")
+    print("  drop as a fraction of the whole Z record")
+    for r in range(5):
+        print("   " + " ".join(f"{dr['drop'][5 * r + c] / dr['leak']:7.4f}" for c in range(5)))
+    print(f"  least {min(dr['drop']) / dr['leak']:.4f}, largest {max(dr['drop']) / dr['leak']:.4f}, "
+          f"sum {sum(dr['drop']) / dr['leak']:.4f}")
+    print()
+
+    print("6. One qubit made ideal, by damping strength: the least and largest drop as a fraction of the leak, and")
+    print("   the number of qubits whose drop is negative, where the leak rises when that qubit is noiseless")
+    print()
+    print(f"  {'code':28} {'damping':>8} {'leak':>11} {'least':>8} {'largest':>8} {'negative':>9}")
+    for small in (shor_code(), ex.surface_code_3()):
+        for g in (0.05, 0.2, 0.35, 0.45, 0.5, 0.6):
+            dq = rg.qubit_drops(small, amplitude_damping(g))
+            r = np.array(dq["drop"]) / dq["leak"]
+            print(f"  {small.name:28} {g:8.2f} {dq['leak']:11.4e} {r.min() + 0.0:8.4f} {r.max() + 0.0:8.4f} "
+                  f"{int((r < -1e-9).sum()):9d}")
+    for g in (far, 0.2, 0.45):
+        dq = dr if g == far else rg.z_qubit_drops(code, g, "z")
+        r = np.array(dq["drop"]) / dq["leak"]
+        print(f"  {code.name + ', Z record':28} {g:8.2f} {dq['leak']:11.4e} {r.min():8.4f} {r.max():8.4f} "
+              f"{int((r < -1e-9).sum()):9d}")
+    print()
+
+    xs = [j for j in range(len(code.stab_strings)) if j not in zs]
+    print(f"7. X and Z generators together past the exact engine: {code.name}, damping {far}")
+    print()
+    print(f"  {'Z generators':>13} {'X generators':>13} {'outcomes':>10} {'leak':>12} {'over the Z record':>18}")
+    for k in (0, 4, 8, 12):
+        v = rg.css_region_tv(code, far, zs + xs[:k], max_terms=2 ** 36)
+        print(f"  {len(zs):13d} {k:13d} {2 ** (len(zs) + k):10d} {v:12.4e} {v / whole:18.4f}")
+    print("  the last row is the whole record of the code")
+    print()
+    small3 = ex.surface_code_3()
+    exact3 = ex.population_leak(small3, amplitude_damping(far))[0]
+    print(f"  control, {small3.name}: the same engine {rg.css_region_leak(small3, far, 'all')[0]:.6e}, "
+          f"the exact engine {exact3:.6e}")
+    print()
+    print("  X and Y shrink by exp(-t / T2), so a set that holds X generators depends on T2; decay probability "
+          f"{far},")
+    print(f"  {len(zs)} Z and 8 X generators")
+    print(f"  {'T2 over T1':>11} {'coherence':>10} {'leak':>12}")
+    for ratio in (2.0, 1.0, 0.5):
+        coh = (1.0 - far) ** (1.0 / ratio)
+        v = rg.css_region_tv(code, far, zs + xs[:8], coherence=coh, max_terms=2 ** 36)
+        print(f"  {ratio:11.1f} {coh:10.4f} {v:12.4e}")
+    print()
+    print("  the leak over damping^d as the damping falls, d the distance: the coefficient of the leading order")
+    print(f"  {'code':22} {'record':>8} {'1e-2':>10} {'1e-3':>10} {'1e-4':>10}")
+    for label, c, d in (("rotated surface d=3", small3, 3), (code.name, code, 5)):
+        for record in ("Z", "whole"):
+            vals = [rg.css_region_tv(c, g, "z" if record == "Z" else "all", max_terms=2 ** 36) / g ** d
+                    for g in (1e-2, 1e-3, 1e-4)]
+            print(f"  {label:22} {record:>8} " + " ".join(f"{v:10.4f}" for v in vals))
+
+
+def _part_tables(circs, labels, delays, cal, shots, saved, key, outcomes):
+    # the tables of the circuit_parts run for one set of circuits; the sampled counts are kept in `saved`
+    import json
+    import os
+    from . import estimate as es
+    from . import gate_level as gl
+    print("parts, split by the two barriers of the circuit: encoder, window (the delay), extraction, and readout")
+    for name in gl.PARTS[:3]:
+        ops = gl.compress(circs[-1], tuple(p for p in gl.PARTS if p != name))[0]
+        noisy = sum(1 for i in ops.data if i.operation.name not in ("measure", "delay")
+                    and getattr(i.operation, "label", None) != "ideal")
+        print(f"  {name:10} {noisy:3d} gates and {ops.count_ops().get('delay', 0):3d} idles at "
+              f"{delays[-1] * 1e6:.0f} us")
+    print(f"{shots} shots per circuit, seeds spaced by more than the shot count, the same seeds in every setting")
+    print()
+    kept = json.load(open(saved)) if os.path.exists(saved) else {"meta": {}}
+    if kept["meta"] == {"shots": shots, **key}:
+        counts = kept["counts"]                  # the sampling takes half an hour; its counts are kept
+    else:
+        counts = {}
+        for name, ideal in gl.part_settings():
+            sim = gl.run_round(circs, cal, shots, gl.spaced_seeds(len(circs), shots), ideal)
+            counts[name] = {f"{lab[0]}_{lab[1]}": c for lab, c in zip(labels, sim)}
+        json.dump({"meta": {"shots": shots, **key}, "counts": counts}, open(saved, "w"))
+    dist = {name: {lab: es.dist_from_counts(by[f"{lab[0]}_{lab[1]}"], outcomes) for lab in labels}
+            for name, by in counts.items()}
+
+    def row(name, t):
+        (p0, n0), (p1, n1) = dist[name][(t, 0)], dist[name][(t, 1)]
+        return es.permutation_test(np.rint(p0 * n0), np.rint(p1 * n1), boots=400, seed=3)
+
+    quiet = all(abs(dist["none"][lab][0][0] - 1.0) < 1e-12 for lab in labels)
+    print(f"control, every part ideal: the trivial syndrome on every shot of every circuit: {quiet}")
+    print()
+    print("distance between the two logical states' records; floor is the mean distance of two samples of one")
+    print("record at this shot count, from the setting with every part noisy")
+    print()
+    for title, names in (("one part made ideal", ["all"] + [f"without {p}" for p in gl.PARTS]),
+                         ("one part noisy alone", ["all"] + [f"only {p}" for p in gl.PARTS])):
+        print(f"  {title}")
+        print(f"  {'delay us':>8} " + " ".join(f"{n:>19}" for n in names) + f" {'floor':>8}")
+        for t in delays:
+            vals = [row(n, t) for n in names]
+            print(f"  {t * 1e6:8.0f} " + " ".join(f"{v['tvd']:19.4f}" for v in vals) + f" {vals[0]['null']:8.4f}")
+        print()
+    noisy = [n for n, _i in gl.part_settings() if n != "none"]
+    print("  each setting against its own floor: distance, floor and permutation p over 400 reassignments")
+    print(f"  {'setting':20} " + " ".join(f"{t * 1e6:>20.0f} us" for t in delays))
+    for n in noisy:
+        vals = [row(n, t) for t in delays]
+        print(f"  {n:20} " + " ".join(f"{v['tvd']:8.4f} {v['null']:7.4f} {v['p_value']:6.3f}" for v in vals))
+    print()
+    rng = np.random.default_rng(9)
+
+    def resampled(name, t, reps=600):
+        out = []
+        for _ in range(reps):
+            a, b = (rng.multinomial(n, q) / n for q, n in (dist[name][(t, 0)], dist[name][(t, 1)]))
+            out.append(tvd(a, b))
+        return np.array(out)
+
+    print("  the distance of a setting minus the distance with every part noisy, and the 2.5 to 97.5 percent")
+    print("  interval of that difference over 600 resamplings of both records")
+    print(f"  {'delay us':>8} {'setting':20} {'difference':>11} {'from':>8} {'to':>8}")
+    for t in delays[1:]:
+        base = resampled("all", t)
+        for n in ("without encoder", "without window", "without extraction", "without readout", "only window"):
+            d = resampled(n, t) - base
+            diff = row(n, t)["tvd"] - row("all", t)["tvd"]
+            print(f"  {t * 1e6:8.0f} {n:20} {diff:11.4f} {np.percentile(d, 2.5):8.4f} {np.percentile(d, 97.5):8.4f}")
+    print()
+    print("  the trivial syndrome's probability for |0_L> and |1_L>, every part noisy and the window ideal")
+    print(f"  {'delay us':>8} {'0_L':>8} {'1_L':>8} {'0_L, ideal window':>18} {'1_L, ideal window':>18}")
+    for t in delays:
+        a, b = dist["all"], dist["without window"]
+        print(f"  {t * 1e6:8.0f} {a[(t, 0)][0][0]:8.4f} {a[(t, 1)][0][0]:8.4f} {b[(t, 0)][0][0]:18.4f} "
+              f"{b[(t, 1)][0][0]:18.4f}")
+
+
+def circuit_parts(shots=8000):
+    # the pinned ibm_fez circuits under the device model, with parts of the circuit made ideal in turn
+    import json
+    import os
+    from . import gate_level as gl
+    try:
+        import qiskit_aer  # noqa: F401
+    except ImportError:
+        print("requires qiskit and qiskit-aer")
+        return
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+    R = json.load(open(os.path.join(root, "hardware_shor_pinned_ibm_fez.json")))
+    meta = R["meta"]
+    calfile = json.load(open(os.path.join(root, "hardware_shor_pinned_ibm_fez_calibration.json")))
+    cal = calfile["calibration"]
+    circs = gl.load_circuits(os.path.join(root, "hardware_shor_pinned_ibm_fez_circuits.qpy"))
+    labels = [tuple(x) for x in meta["labels"]]
+    delays = meta["delays_s"]
+    small, used = gl.compress(circs[-1])
+    print(f"the {len(circs)} circuits of job {meta['job_id']} as executed on {meta['backend']}, {len(used)} qubits, "
+          f"under the model built from the calibration read before submission")
+    _part_tables(circs, labels, delays, cal, shots, os.path.join(root, "circuit_parts_counts.json"),
+                 {"job_id": meta["job_id"]}, 64)
+
+
+def circuit_parts_surface(shots=8000, delays=(0.0, 20e-6, 50e-6, 100e-6), seeds=(11, 12, 13, 14, 15, 16)):
+    # the same analysis on a second code: the distance 3 rotated surface code, one round of its Z generators
+    import os
+    from . import expectations as ex
+    from . import gate_level as gl
+    from . import hardware as hw
+    try:
+        import qiskit_aer  # noqa: F401
+        from qiskit.transpiler import generate_preset_pass_manager
+        from qiskit_ibm_runtime.fake_provider import FakeFez
+    except ImportError:
+        print("requires qiskit, qiskit-aer and qiskit-ibm-runtime")
+        return
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+    code, backend = ex.surface_code_3(), FakeFez()
+    circs, labels = hw.build_extraction_circuits(code, list(delays), checks="z")
+    layout_of = lambda t: list(t.layout.initial_index_layout(filter_ancillas=True))
+    two = lambda t: sum(1 for i in t.data if len(i.qubits) == 2)
+    best = None
+    for seed in seeds:                           # the layout with the fewest two-qubit gates over a few seeds
+        pm = generate_preset_pass_manager(optimization_level=3, backend=backend, seed_transpiler=seed,
+                                          scheduling_method="alap")
+        t = pm.run(circs[-1])
+        if best is None or two(t) < best[0]:
+            best = (two(t), seed, layout_of(t))
+    n2, seed, layout = best
+    pm = generate_preset_pass_manager(optimization_level=3, backend=backend, seed_transpiler=seed,
+                                      initial_layout=layout, scheduling_method="alap")
+    tqcs = [pm.run(c) for c in circs]
+    assert all(layout_of(t) == layout for t in tqcs), "a circuit left the pinned layout"
+    cal = gl.calibration_from_target(backend.target, layout)
+    t1 = [cal["qubits"][str(q)]["t1"] * 1e6 for q in layout[:code.n]]
+    print(f"{code.name}, one round of its {len(hw.select_checks(code, 'z'))} Z generators, {len(tqcs)} circuits on the "
+          f"calibration of {backend.name}")
+    print(f"every circuit on one layout, transpiler seed {seed}: data {layout[:code.n]}, ancillas {layout[code.n:]}; "
+          f"{two(tqcs[-1])} two-qubit gates; data T1 {min(t1):.0f} to {max(t1):.0f} us")
+    _part_tables(tqcs, labels, list(delays), cal, shots, os.path.join(root, "circuit_parts_surface_counts.json"),
+                 {"backend": backend.name, "seed": seed, "layout": layout}, 2 ** len(hw.select_checks(code, "z")))
+
+
+def drop_sign():
+    # where the leak rises when one qubit is made noiseless: the sign of the drop of regions.qubit_drops
+    import json
+    import os
+    from . import expectations as ex
+    from . import regions as rg
+    from .codes import shor_code
+    from .css import css_strings
+    small = [STD[n]() for n in ("repetition", "code_4_1_2", "hamming_7")] + [shor_code(), ex.surface_code_3()]
+    weak = 1e-3
+
+    print(f"1. Weak damping, {weak} on every qubit: the drop of each qubit over the leak, beside whether the qubit lies")
+    print("   on a Z logical of least weight inside the support of a product of Z generators")
+    print()
+    print(f"  {'code':28} {'order':>6} {'on a logical':>13} {'off':>4} {'drop > 0':>9} {'drop < 0':>9} "
+          f"{'disagree':>9} {'least drop':>11}")
+    for code in small:
+        order, cover = rg.logical_cover(code)
+        dq = rg.qubit_drops(code, amplitude_damping(weak))
+        r = np.array(dq["drop"]) / dq["leak"]
+        print(f"  {code.name:28} {order:6d} {int(cover.sum()):13d} {int((~cover).sum()):4d} {int((r > 0).sum()):9d} "
+              f"{int((r < 0).sum()):9d} {int(((r > 0) != cover).sum()):9d} {r.min():11.4f}")
+    print()
+
+    print("2. Equal damping on every qubit: the damping at which a qubit's drop first changes sign, and that damping")
+    print("   as an idle time over T1; qubits with the same crossing share a row")
+    print()
+    print(f"  {'code':28} {'qubits':22} {'damping':>8} {'idle / T1':>10}")
+    grid = np.linspace(0.02, 0.98, 49)
+    for code in small:
+        drops = np.array([rg.qubit_drops(code, amplitude_damping(g))["drop"] for g in grid])
+        rows = {}
+        for q in range(code.n):
+            flips = np.flatnonzero((drops[:-1, q] > 0) != (drops[1:, q] > 0))
+            if not len(flips):
+                rows.setdefault(None, []).append(q)
+                continue
+            lo, hi = grid[flips[0]], grid[flips[0] + 1]
+            up = drops[flips[0], q] > 0
+            for _ in range(22):
+                mid = 0.5 * (lo + hi)
+                if (rg.qubit_drops(code, amplitude_damping(mid))["drop"][q] > 0) == up:
+                    lo = mid
+                else:
+                    hi = mid
+            rows.setdefault(round(0.5 * (lo + hi), 4), []).append(q)
+        for g, qs in sorted(rows.items(), key=lambda kv: (kv[0] is None, kv[0] or 0.0)):
+            text = (f"{'no change':>8} {'-':>10}" if g is None else f"{g:8.4f} {-math.log(1.0 - g):10.4f}")
+            print(f"  {code.name:28} {str(qs):22} {text}")
+    print()
+
+    print("3. The Shor code at unequal rates: the drop of qubit q is gamma_q (1 - gamma_a - gamma_b) times the")
+    print("   factors of the other two blocks, a and b the other qubits of its block")
+    print()
+    rng = np.random.default_rng(12)
+    F = lambda g: 1 - np.prod(1 - g) - np.prod(g)
+    worst, signs, draws = 0.0, 0, 40
+    for _ in range(draws):
+        g = rng.uniform(0.02, 0.95, 9)
+        got = rg.qubit_drops(shor_code(), [amplitude_damping(x) for x in g])["drop"]
+        for q in range(9):
+            blk = 3 * (q // 3)
+            mates = [i for i in range(blk, blk + 3) if i != q]
+            want = np.prod([F(g[b:b + 3]) for b in (0, 3, 6) if b != blk]) * g[q] * (1 - g[mates].sum())
+            worst = max(worst, abs(got[q] - want))
+            signs += (got[q] > 0) != (g[mates].sum() < 1)
+    print(f"  {draws} draws of nine rates between 0.02 and 0.95: largest difference from the closed form {worst:.1e}; "
+          f"drops whose sign is not that of 1 - gamma_a - gamma_b: {signs} of {9 * draws}")
+    print()
+
+    d5 = css_strings(*ex.rotated_surface_code(5), "rotated surface d=5")
+    print(f"4. {d5.name}, the Z record, equal damping: the least and largest drop over the leak")
+    print()
+    print(f"  {'damping':>8} {'leak':>11} {'least':>8} {'largest':>8} {'negative':>9}")
+    for g in (0.45, 0.6, 0.75, 0.9):
+        dq = rg.z_qubit_drops(d5, g, "z")
+        r = np.array(dq["drop"]) / dq["leak"]
+        print(f"  {g:8.2f} {dq['leak']:11.4e} {r.min():8.4f} {r.max():8.4f} {int((r < -1e-9).sum()):9d}")
+    print()
+
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
+    meta = json.load(open(os.path.join(root, "hardware_shor_pinned_ibm_fez.json")))["meta"]
+    cal = json.load(open(os.path.join(root, "hardware_shor_pinned_ibm_fez_calibration.json")))["calibration"]
+    t1 = np.array([cal["qubits"][str(q)]["t1"] for q in meta["data_qubits"]])
+    print(f"5. The Shor code at the T1 of the data qubits of job {meta['job_id']}, {t1.min() * 1e6:.0f} to "
+          f"{t1.max() * 1e6:.0f} us,")
+    print("   amplitude damping over the idle alone")
+    print()
+    print(f"  {'delay us':>8} {'damping from':>13} {'to':>7} {'leak':>9} {'least drop':>11} {'largest':>8} {'negative':>9}")
+    for t in meta["delays_s"][1:] + [200e-6, 400e-6]:
+        g = 1.0 - np.exp(-t / t1)
+        dq = rg.qubit_drops(shor_code(), [amplitude_damping(x) for x in g])
+        r = np.array(dq["drop"]) / dq["leak"]
+        print(f"  {t * 1e6:8.0f} {g.min():13.4f} {g.max():7.4f} {dq['leak']:9.4f} {r.min():11.4f} {r.max():8.4f} "
+              f"{int((r < -1e-9).sum()):9d}")
+
+
 RUNS = {"selftest": selftest, "attack": attack, "leak_order": leak_order, "coherent": coherent,
         "structure": structure, "device": device, "held_memory": held_memory,
         "worst_pair": worst_pair, "pauli_boundary": pauli_boundary, "audit": audit, "kl_blocks": kl_blocks,
         "surface": surface, "protection": protection, "shor_circuits": shor_circuits,
         "shor_noise": shor_noise, "estimator": estimator, "disorder": disorder, "readout": readout, "rounds": rounds,
         "shor_device_model": shor_device_model, "tensor": tensor_network,
-        "sampled": sampled_relaxation, "zchecks": z_checks, "decoded": decoded}
+        "sampled": sampled_relaxation, "zchecks": z_checks, "decoded": decoded, "regions": regions,
+        "circuit_parts": circuit_parts, "circuit_parts_surface": circuit_parts_surface,
+        "drop_sign": drop_sign}
 
 
 def _incomplete(text):

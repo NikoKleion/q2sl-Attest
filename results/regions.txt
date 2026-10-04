@@ -1,0 +1,116 @@
+1. Parts of the record, exact engine, amplitude damping 0.1 on every qubit
+
+Shor [[9,1,3]]: 8 generators XXXXXXIII IIIXXXXXX ZZIIIIIII IZZIIIIII IIIZZIIII IIIIZZIII IIIIIIZZI IIIIIIIZZ
+  whole record 0.019683   Z generators 0.019683   X generators 0.000000
+   generators in the set  sets  that leak  largest leak  on
+                       1     8          0      0.000000  -
+                       2    28          0      0.000000  -
+                       3    56          8      0.005832  (3, 5, 7)
+                       4    70         28      0.008748  (3, 5, 6, 7)
+                       5    56         38      0.013122  (2, 3, 5, 6, 7)
+                       6    28         25      0.019683  (2, 3, 4, 5, 6, 7)
+                       7     8          8      0.019683  (1, 2, 3, 4, 5, 6, 7)
+                       8     1          1      0.019683  (0, 1, 2, 3, 4, 5, 6, 7)
+  smallest sets that leak, 3 generators: (3, 5, 6) 0.005832, (3, 4, 6) 0.005832, (3, 4, 7) 0.005832, (3, 5, 7) 0.005832, (2, 4, 6) 0.005832, (2, 5, 6) 0.005832, (2, 4, 7) 0.005832, (2, 5, 7) 0.005832
+  leak with one qubit made ideal: 0.013851 0.013851 0.013851 0.013851 0.013851 0.013851 0.013851 0.013851 0.013851
+  drop                          : 0.005832 0.005832 0.005832 0.005832 0.005832 0.005832 0.005832 0.005832 0.005832   sum 0.052488
+
+rotated surface [[9,1,3]]: 8 generators IXXIXXIII IIIXXIXXI XXIIIIIII IIIIIIIXX ZZIZZIIII IIIIZZIZZ IIZIIZIII IIIZIIZII
+  whole record 0.005318   Z generators 0.005103   X generators 0.000000
+   generators in the set  sets  that leak  largest leak  on
+                       1     8          0      0.000000  -
+                       2    28          3      0.002916  (4, 6)
+                       3    56         16      0.002916  (5, 6, 7)
+                       4    70         35      0.005103  (4, 5, 6, 7)
+                       5    56         40      0.005103  (2, 4, 5, 6, 7)
+                       6    28         25      0.005184  (0, 3, 4, 5, 6, 7)
+                       7     8          8      0.005233  (1, 2, 3, 4, 5, 6, 7)
+                       8     1          1      0.005318  (0, 1, 2, 3, 4, 5, 6, 7)
+  smallest sets that leak, 2 generators: (4, 6) 0.002916, (5, 7) 0.002916, (4, 5) 0.001458
+  leak with one qubit made ideal: 0.004015 0.004015 0.004071 0.004071 0.003219 0.004071 0.004071 0.004015 0.004015
+  drop                          : 0.001303 0.001303 0.001247 0.001247 0.002098 0.001247 0.001247 0.001303 0.001303   sum 0.012297
+
+2. A set of Z generators leaks exactly when a product of them covers a Z logical
+
+  code                          sets of Z generators  leak above 1e-12  product covers a logical  disagree
+  Shor [[9,1,3]]                                  63                27                        27         0
+  rotated surface [[9,1,3]]                       15                 8                         8         0
+
+3. Past the exact engine: the fewest Z generators that leak, and their leak at damping 0.05
+
+  code                        n  Z gen  d/l*  fewest  proven  qubits touched  leak of the set  whole Z record
+  rotated surface d=3         9      4  0.75       2    True               6       4.2869e-04      7.5020e-04
+  rotated surface d=5        25     12  1.25       3    True              10       1.9345e-06      1.0657e-05
+  rotated surface d=7        49     24  1.75       4    True              15       4.3646e-09               -
+  rotated surface d=9        81     40  2.25       5    True              18       3.9391e-11               -
+  rotated surface d=11      121     60  2.75       6    True              22       1.7773e-13               -
+
+4. rotated surface d=5: a region grown one Z generator at a time, each time by the one that adds most,
+   from the best set of three; damping 0.05; whole Z record 1.0657e-05
+
+  generators         leak  of the whole  added
+           3   1.9345e-06        0.1815  (18, 19, 23)
+           4   2.3678e-06        0.2222  15
+           5   3.0534e-06        0.2865  14
+           6   5.6941e-06        0.5343  22
+           7   6.0878e-06        0.5713  21
+           8   6.6546e-06        0.6244  17
+           9   7.4278e-06        0.6970  16
+          10   7.6412e-06        0.7170  12
+          11   8.2701e-06        0.7760  13
+          12   1.0657e-05        1.0000  20
+
+5. rotated surface d=5: the whole Z record with one qubit made ideal, damping 0.05; qubit d r + c at row r, column c
+
+  drop as a fraction of the whole Z record
+    0.0877  0.0877  0.0905  0.0905  0.1573
+    0.2193  0.1929  0.1858  0.2191  0.1573
+    0.2193  0.2281  0.2563  0.2281  0.2193
+    0.1573  0.2191  0.1858  0.1929  0.2193
+    0.1573  0.0905  0.0905  0.0877  0.0877
+  least 0.0877, largest 0.2563, sum 4.1272
+
+6. One qubit made ideal, by damping strength: the least and largest drop as a fraction of the leak, and
+   the number of qubits whose drop is negative, where the leak rises when that qubit is noiseless
+
+  code                          damping        leak    least  largest  negative
+  Shor [[9,1,3]]                   0.05  2.8936e-03   0.3158   0.3158         0
+  Shor [[9,1,3]]                   0.20  1.1059e-01   0.2500   0.2500         0
+  Shor [[9,1,3]]                   0.35  3.1791e-01   0.1538   0.1538         0
+  Shor [[9,1,3]]                   0.45  4.0934e-01   0.0606   0.0606         0
+  Shor [[9,1,3]]                   0.50  4.2188e-01   0.0000   0.0000         0
+  Shor [[9,1,3]]                   0.60  3.7325e-01  -0.1667  -0.1667         9
+  rotated surface [[9,1,3]]        0.05  7.6543e-04   0.2612   0.4123         0
+  rotated surface [[9,1,3]]        0.20  3.1283e-02   0.1727   0.3540         0
+  rotated surface [[9,1,3]]        0.35  9.7638e-02   0.0499   0.2759         0
+  rotated surface [[9,1,3]]        0.45  1.3466e-01  -0.0686   0.2076         8
+  rotated surface [[9,1,3]]        0.50  1.4453e-01  -0.1461   0.1668         8
+  rotated surface [[9,1,3]]        0.60  1.4550e-01  -0.3218   0.0935         8
+  rotated surface d=5, Z record     0.05  1.0657e-05   0.0877   0.2563         0
+  rotated surface d=5, Z record     0.20  3.3526e-03   0.0437   0.1701         0
+  rotated surface d=5, Z record     0.45  2.7972e-02   0.0180   0.0499         0
+
+7. X and Z generators together past the exact engine: rotated surface d=5, damping 0.05
+
+   Z generators  X generators   outcomes         leak  over the Z record
+             12             0       4096   1.0657e-05             1.0000
+             12             4      65536   1.1472e-05             1.0764
+             12             8    1048576   1.2306e-05             1.1547
+             12            12   16777216   1.3193e-05             1.2379
+  the last row is the whole record of the code
+
+  control, rotated surface [[9,1,3]]: the same engine 7.654328e-04, the exact engine 7.654328e-04
+
+  X and Y shrink by exp(-t / T2), so a set that holds X generators depends on T2; decay probability 0.05,
+  12 Z and 8 X generators
+   T2 over T1  coherence         leak
+          2.0     0.9747   1.2306e-05
+          1.0     0.9500   1.1332e-05
+          0.5     0.9025   1.0919e-05
+
+  the leak over damping^d as the damping falls, d the distance: the coefficient of the leading order
+  code                     record       1e-2       1e-3       1e-4
+  rotated surface d=3           Z     6.7921     6.9790     6.9979
+  rotated surface d=3       whole     6.8189     6.9818     6.9982
+  rotated surface d=5           Z    47.8156    51.5662    51.9565
+  rotated surface d=5       whole    50.0272    51.8029    51.9803

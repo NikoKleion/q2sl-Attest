@@ -27,14 +27,4 @@ Synthetic payloads only.
 
 Checked against independent answers. The fused posterior of a five-digit Luhn number under two experts
 equals the enumeration of all 10^5 instances to 1e-12, and the Shapley values add up to the total drop in
-residual bits, their defining property. The structural entropy `blind_bits` was compared with the SP 800-90B
-estimators of qrng-attest on a million generated digits of each stream:
-
-| stream | blind_bits per digit | largest per-digit estimator | SP 800-90B assessed |
-|---|---|---|---|
-| uniform digits | 3.3219 | 3.3219 | 1.409 |
-| card numbers | 2.8204 | 2.684 | 1.092 |
-| phone numbers | 3.2101 | 3.124 | 1.457 |
-
-None of the seven estimators that read one digit per symbol exceeds the structural value, and the assessed
-value, the least over every estimator, is 39 to 45 percent of it.
+residual bits, their defining property.

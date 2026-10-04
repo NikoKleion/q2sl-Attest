@@ -28,12 +28,6 @@ jobs:
         run: python -m pytest tests -q
       - name: Zero-dependency runner
         run: python tests/run_tests.py
-      - name: Attest test suite
-        working-directory: attest
-        run: python -m pytest tests -q
-      - name: Attest zero-dependency runner
-        working-directory: attest
-        run: python tests/run_tests.py
 
   # every optional path, so the circuit and hardware half is actually exercised
   full:
@@ -55,13 +49,9 @@ jobs:
           pip install -e ".[full]"
       - name: Test suite
         run: python -m pytest tests -q
-      - name: Attest test suite
-        working-directory: attest
-        run: python -m pytest tests -q
       - name: No test may be skipped for a missing dependency
         run: |
           python -m pytest tests -q -rs 2>&1 | tee out.txt
-          (cd attest && python -m pytest tests -q -rs) 2>&1 | tee -a out.txt
           if grep -qiE "SKIPPED.*(requires|needs) " out.txt; then
             echo "a dependency-gated test skipped even with [full] installed:"
             grep -iE "SKIPPED" out.txt
@@ -71,7 +61,6 @@ jobs:
         run: |
           python q2sl.py assess shor
           python q2sl.py assess steane
-          python q2sl.py attest demo --shots 2000
           python -m syndrome_leakage.figures
       - name: A saved run must not be overwritten by an incomplete one
         run: |

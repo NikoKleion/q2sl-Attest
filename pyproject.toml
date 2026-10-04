@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "q2sl-attest"
 version = "1.0.0"
-description = "q2sl attest (Quantum Syndrome and Source Limits): the information a stabilizer code's syndrome carries about the encoded logical state, and entropy assessment and attestation of quantum random number generation, with Qiskit"
+description = "q2sl attest: the information a stabilizer code's syndrome carries about the encoded logical state, with Qiskit"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
@@ -13,7 +13,7 @@ requires-python = ">=3.11"
 authors = [{name = "Nikolas Klein", email = "nikomaxman@gmail.com"}]
 dependencies = ["numpy>=1.24"]
 keywords = ["qiskit", "quantum", "quantum-computing", "quantum-error-correction", "syndrome", "side-channel",
-            "qrng", "random-number-generation", "min-entropy", "nist-sp-800-90b", "cryptography"]
+            "amplitude-damping", "stabilizer-codes"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -35,10 +35,9 @@ plots = ["matplotlib"]
 stim = ["stim", "pymatching"]
 tensor = ["cotengra>=0.7"]
 qldpc = ["qldpc>=0.3"]
-sp80022 = ["nistrng>=1.2"]
 dev = ["pytest"]
 full = ["scipy", "pyzx", "qiskit>=2.3", "qiskit-aer", "qiskit-ibm-runtime", "torch", "ldpc", "stim", "pymatching",
-        "matplotlib", "cotengra>=0.7", "qldpc>=0.3", "nistrng>=1.2", "pytest"]
+        "matplotlib", "cotengra>=0.7", "qldpc>=0.3", "pytest"]
 
 [project.urls]
 Repository = "https://github.com/NikoKleion/q2sl-Attest"
@@ -46,15 +45,10 @@ Issues = "https://github.com/NikoKleion/q2sl-Attest/issues"
 
 [project.scripts]
 q2sl = "q2sl:main"
-qrng-attest = "qrng_attest.__main__:main"
 
 [tool.setuptools]
-packages = ["syndrome_leakage", "qrng_attest", "entropy_fusion", "suite", "reconstruction", "reconstruction.models"]
+packages = ["syndrome_leakage", "entropy_fusion", "suite", "reconstruction", "reconstruction.models"]
 py-modules = ["q2sl"]
-
-[tool.setuptools.package-dir]
-qrng_attest = "attest/qrng_attest"
 
 [tool.setuptools.package-data]
 reconstruction = ["models/*.pt"]
-qrng_attest = ["py.typed"]

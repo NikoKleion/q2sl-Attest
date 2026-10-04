@@ -15,6 +15,17 @@ CSS codes only, and refuses past its width limit. Sampling covers relaxation wit
 stabilizer measurement, and each statistic of its records bounds the leak from below only. `zchecks` reads
 the Z checks alone, under relaxation alone, with ideal stabilizer measurement.
 
+A drop from `qubit_drops` ranks qubits at weak damping only: past a damping of about 0.4 on the codes run,
+making one qubit noiseless raises the leak for some qubits, and at 0.6 for every qubit of every code run. A
+qubit on no Z logical of least weight has a negative drop at every damping.
+
+`regions` returns the leak of a part of the record, which is at most the leak of the whole record and can be
+zero where the whole is not. `z_region_leak`, `smallest_leaking_set` and `region_order` read Z generators of
+CSS codes under relaxation with ideal measurement. `css_region_leak` reads X and Z generators of a CSS code
+under relaxation alone, a decay probability below 1 and a coherence factor per qubit; under any other channel
+a set of generators needs the exact engine. The integer program proves its answer where the solver finishes,
+108 s for the distance 11 surface code, and otherwise reports that it stopped.
+
 Leak measures compare the two logical basis states. `worst_case_pair` searches a grid of 58 logical
 states for a more distinguishable pair.
 

@@ -12,7 +12,6 @@ def _codes():
 
 COMMANDS = {
     "assess":      "analyses for a code name, file:<path>, qecdb:<id> or backend:<name>",
-    "attest":      "entropy assessment and attestation of a random source: demo, file or backend",
     "qecdb":       "search qecdb.org for CSS codes, e.g. q2sl qecdb n=9 k=1 d=3 family=surface",
     "leak":        "syndrome leak self-test (syndrome_leakage)",
     "fusion":      "residual min-entropy on synthetic payloads (entropy_fusion)",
@@ -64,6 +63,9 @@ def _assess_code(name, gamma=0.2, shots=40):
     print(f"code: {c.name} under amplitude damping gamma={gamma}")
     print(f"  population {order}; phase {'protected' if r.phase < 1e-9 else 'leaks'}")
     print(f"  TVD {r.population:.3e} | W1 {w1s} | eavesdropper error over {shots} shots {eve:.3f}")
+    part = _region_line(c, gamma) if r.leaks else None
+    if part:
+        print(f"  {part}")
     print(f"  read reliability from distinguishability: {0.5 + (0.5 - eve):.3f}")
 
 
@@ -140,6 +142,10 @@ def _report_code(code, gamma=0.2):
             leak, _d0, _d1 = ex.population_leak(one, amplitude_damping(gamma))
             line += f", TVD {leak:.3e} at gamma={gamma}"
         print(line)
+        if not order_text.startswith("protected"):
+            part = _region_line(one, gamma)
+            if part:
+                print(f"{' ' * len(label)}{part}")
         if code.n > 14 and order_text != "protected":
             for text in _contracted(one, gamma, fit=not order_text.startswith("leaks")):
                 print(f"{' ' * len(label)}{text}")
@@ -149,11 +155,29 @@ def _report_code(code, gamma=0.2):
                   + ", ".join(f"{k} {v:.3e}" for k, v in row.items()))
     if code.n > 14:
         print(f"  the exact leak needs {code.n} qubits simulated and the engine reaches about 14; past that,"
-              f" the tensor network gives the L2 distance, and half of it bounds the leak from below")
+              f" the record of a few Z generators and half the L2 distance from the tensor network bound the leak from below")
     if code.k > 1:
         print("  the per-logical numbers belong to the basis printed above; another symplectic basis for "
               "the same code gives different ones")
     return 0
+
+
+def _region_line(code, gamma, time_limit=120):
+    # the fewest Z generators whose record leaks, and the distance of that record, which bounds the whole record's
+    try:
+        from syndrome_leakage import regions
+        r = regions.smallest_leaking_set(code, time_limit=time_limit)
+    except (ImportError, ValueError):
+        return None
+    if r["size"] is None:
+        return None
+    few = str(r["size"]) if r["optimal"] else f"at most {r['size']}"
+    line = f"fewest Z generators that leak: {few}, generators {r['checks']}"
+    try:
+        leak = regions.z_region_leak(code, gamma, r["checks"])[0]
+    except ValueError:
+        return line
+    return line + f"; TVD of their record {leak:.3e} at gamma={gamma}, at most the TVD of the whole record"
 
 
 def _order_by_program(code, refusal, time_limit=120):
@@ -296,15 +320,7 @@ def _all(args=None):
         fn()
 
 
-def _attest(args):
-    attest = os.path.join(HERE, "attest")
-    if os.path.isdir(attest) and attest not in sys.path:
-        sys.path.insert(0, attest)
-    from qrng_attest.__main__ import main as attest_main
-    return attest_main(list(args))
-
-
-DISPATCH = {"assess": _assess, "attest": _attest, "qecdb": _qecdb, "leak": _leak, "fusion": _fusion, "eavesdrop": _eavesdrop,
+DISPATCH = {"assess": _assess, "qecdb": _qecdb, "leak": _leak, "fusion": _fusion, "eavesdrop": _eavesdrop,
             "reconstruct": _reconstruct, "example": _showcase, "suite": _suite, "all": _all}
 
 

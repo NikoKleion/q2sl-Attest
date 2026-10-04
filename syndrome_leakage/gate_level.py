@@ -55,19 +55,38 @@ def load_circuits(path, keys_path=None):
         return dict(zip(json.load(fh), circs))
 
 
-def compress(tqc):
-    """A transpiled circuit rebuilt on the physical qubits it uses; returns (circuit, used qubits)."""
+PARTS = ("encoder", "window", "extraction", "readout")
+
+
+def part_settings(parts=PARTS):
+    """(name, ideal parts): every part noisy, each part ideal in turn, each part noisy alone, every part ideal."""
+    return ([("all", ())] + [(f"without {p}", (p,)) for p in parts]
+            + [(f"only {p}", tuple(q for q in parts if q != p)) for p in parts] + [("none", tuple(parts))])
+
+
+def compress(tqc, ideal=()):
+    """A transpiled circuit rebuilt on the physical qubits it uses; returns (circuit, used qubits). The two barriers
+    of the circuit builders split it into encoder, window and extraction. In a part named in ideal the gates carry
+    a label, which keeps the errors registered under their names off them, and the delays are left out."""
     from qiskit import QuantumCircuit
     used = sorted({tqc.find_bit(q).index for inst in tqc.data for q in inst.qubits
                    if inst.operation.name not in ("barrier", "delay")})
     pos = {q: i for i, q in enumerate(used)}
     out = QuantumCircuit(len(used), tqc.num_clbits)
+    part = 0
     for inst in tqc.data:
-        if inst.operation.name == "barrier":
+        op = inst.operation
+        if op.name == "barrier":
+            part = min(part + 1, 2)
             continue
         if any(tqc.find_bit(q).index not in pos for q in inst.qubits):
             continue
-        out.append(inst.operation, [pos[tqc.find_bit(q).index] for q in inst.qubits],
+        if PARTS[part] in ideal and op.name != "measure":
+            if op.name == "delay":
+                continue
+            op = op.to_mutable()
+            op.label = "ideal"
+        out.append(op, [pos[tqc.find_bit(q).index] for q in inst.qubits],
                    [tqc.find_bit(c).index for c in inst.clbits])
     return out, used
 
@@ -94,7 +113,7 @@ def with_idle_noise(circ, used, cal):
     return out
 
 
-def noise_model(used, cal):
+def noise_model(used, cal, readout=True):
     """Gate and readout noise for the compressed circuit, from the calibration of the qubits it uses."""
     from qiskit_aer.noise import NoiseModel, ReadoutError, depolarizing_error
     nm = NoiseModel(basis_gates=["rz", "sx", "x", "cz", "ecr", "cx", "id", "kraus"])
@@ -105,7 +124,7 @@ def noise_model(used, cal):
             if row.get(g):
                 err = depolarizing_error(max(row[g]["error"], 0.0), 1)
                 nm.add_quantum_error(err.compose(_relax(row["t1"], row["t2"], row[g]["duration"])), g, [pos[q]])
-        if row["readout"]:
+        if readout and row["readout"]:
             e = row["readout"]
             nm.add_readout_error(ReadoutError([[1 - e, e], [e, 1 - e]]), [pos[q]])
     for key, props in cal["pairs"].items():
@@ -118,14 +137,15 @@ def noise_model(used, cal):
     return nm
 
 
-def run_round(tqcs, cal, shots, seeds):
-    """Sample each transpiled circuit under the device model; returns one counts dict per circuit."""
+def run_round(tqcs, cal, shots, seeds, ideal=()):
+    """Sample each transpiled circuit under the device model; returns one counts dict per circuit. ideal names the
+    parts of PARTS that carry no noise."""
     from qiskit_aer import AerSimulator
     out = []
     for circ, seed in zip(tqcs, seeds):
-        small, used = compress(circ)
+        small, used = compress(circ, ideal)
         noisy = with_idle_noise(small, used, cal)
-        sim = AerSimulator(method="statevector", noise_model=noise_model(used, cal))
+        sim = AerSimulator(method="statevector", noise_model=noise_model(used, cal, "readout" not in ideal))
         out.append(sim.run(noisy, shots=shots, seed_simulator=seed).result().get_counts())
     return out
 

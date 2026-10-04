@@ -17,28 +17,20 @@ pip install -e ".[full]"   # every optional dependency
 | `reconstruction` | torch, ldpc | `reconstruction`, BP+OSD decoding |
 | `zx` | pyzx | `suite.zx_fingerprint` |
 | `plots` | matplotlib | the figures |
-| `sp80022` | nistrng | the NIST SP 800-22 battery in `attest/` |
-| `dev` | pytest | the test suites |
+| `dev` | pytest | the test suite |
 
-The package installs two commands, `q2sl` and `qrng-attest`, and the packages `syndrome_leakage`,
-`qrng_attest`, `entropy_fusion`, `reconstruction` and `suite`. `qrng_attest` is built from `attest/`, which
-is also a standalone project with its own `pyproject.toml`:
-
-```bash
-pip install -e attest      # qrng-attest alone
-```
+The package installs the command `q2sl` and the packages `syndrome_leakage`, `entropy_fusion`,
+`reconstruction` and `suite`.
 
 Inside a clone, `python q2sl.py` works in place of the installed `q2sl`.
 
 ## Tests
 
-The two parts have separate suites, each runnable under pytest or with numpy alone.
+The suite runs under pytest or with numpy alone.
 
 ```bash
 python -m pytest tests                     # syndromes and the supporting packages
 python tests/run_tests.py
-cd attest && python -m pytest tests        # the entropy attestation
-cd attest && python tests/run_tests.py
 ```
 
 A test that needs an optional dependency skips without it. One test reaches qecdb.org and runs only with

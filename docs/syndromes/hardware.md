@@ -42,6 +42,7 @@ from syndrome_leakage import gate_level as gl
 
 cal = gl.calibration_from_target(backend.target, qubits, pairs)   # or gl.load_calibration(path)
 counts = gl.run_round(transpiled_circuits, cal, shots, gl.spaced_seeds(len(transpiled_circuits), shots))
+quiet = gl.run_round(transpiled_circuits, cal, shots, seeds, ideal=("window",))   # the delay made noiseless
 ```
 
 A transpiled round on a model in which every gate, idle and readout carries its own qubit's calibration.
@@ -50,7 +51,17 @@ delay into a relaxation channel of its own duration on that qubit, so the idle d
 idles between gates both count. `noise_model` puts depolarizing error and relaxation on every one- and
 two-qubit gate and a symmetric flip on every readout. `calibration_from_target` reads the numbers from a
 `BackendV2` target, and `save_calibration` writes them with the date so that a run repeats without an
-account. Aer draws shots from `seed_simulator`, and runs with close seeds share random numbers;
+account.
+
+The circuit builders put a barrier before and after the delay, which splits a round into the encoder, the
+window and the extraction; the readout is a fourth part. `run_round(..., ideal=)` takes any of `gl.PARTS`
+and runs the round with those parts noiseless: their gates carry no error and no relaxation, their idles
+are left out, and an ideal readout drops the readout flips. `part_settings()` lists the ten settings of a
+drop analysis: every part noisy, each part noiseless in turn, each part noisy alone, and none noisy, which
+must return the trivial syndrome on every shot. A part is a position in the circuit, so a qubit that idles
+between the gates of the extraction counts as extraction.
+
+Aer draws shots from `seed_simulator`, and runs with close seeds share random numbers;
 `spaced_seeds` spaces them by more than the shot count.
 
 ## Export a round to Stim

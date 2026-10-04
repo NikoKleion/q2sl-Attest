@@ -101,3 +101,62 @@ def test_executed_circuits_match_the_job():
     for (t, _p), lay in zip(job["labels"], job["layouts"]):
         same = sorted(lay["data_qubits"]) == sorted(first["data_qubits"])
         assert same == (t == 0), (t, lay)
+
+def _three_parts(x_error):
+    from qiskit import QuantumCircuit
+    qc = QuantumCircuit(1, 1)
+    qc.x(0)
+    qc.barrier()
+    qc.delay(25_000, 0, unit="dt")              # one T1 at dt = 4 ns
+    qc.barrier()
+    qc.x(0)
+    qc.x(0)
+    qc.measure(0, 0)
+    cal = _cal([0], [])
+    cal["qubits"]["0"]["x"]["error"] = x_error
+    return qc, cal
+
+
+def test_a_part_named_ideal_carries_no_noise():
+    needs("qiskit")
+    needs("qiskit_aer")
+    qc, cal = _three_parts(0.3)
+    p1 = lambda ideal: gl.run_round([qc], cal, 20000, [9_000_011], ideal)[0].get("1", 0) / 20000
+    assert p1(gl.PARTS) == 1.0
+    window = p1(("encoder", "extraction", "readout"))
+    assert abs(window - np.exp(-1.0)) < 0.02, window
+    # depolarizing 0.3 flips with 0.15: the encoder's x alone, then all three x, the window and a readout flip of 0.01
+    assert abs(p1(("window", "extraction", "readout")) - 0.85) < 0.02
+    survive = 0.85 * np.exp(-1.0)
+    assert abs(p1(()) - (0.99 * (survive * 0.745 + (1 - survive) * 0.255) + 0.01 * (survive * 0.255 + (1 - survive) * 0.745))) < 0.02
+    assert [name for name, _ideal in gl.part_settings()][:2] == ["all", "without encoder"]
+    assert len(gl.part_settings()) == 10 and gl.part_settings()[-1] == ("none", gl.PARTS)
+
+
+def test_ideal_parts_label_gates_and_drop_delays_of_that_part_only():
+    needs("qiskit")
+    qc, _cal0 = _three_parts(0.0)
+    plain, used = gl.compress(qc)
+    same, _ = gl.compress(qc, ())
+    assert [i.operation.name for i in plain.data] == [i.operation.name for i in same.data] and used == [0]
+    assert all(getattr(i.operation, "label", None) != "ideal" for i in same.data)
+    quiet, _ = gl.compress(qc, ("window",))
+    assert quiet.count_ops().get("delay", 0) == 0 and quiet.count_ops()["x"] == 3
+    marked, _ = gl.compress(qc, ("extraction",))
+    labels = [getattr(i.operation, "label", None) for i in marked.data if i.operation.name == "x"]
+    assert labels == [None, "ideal", "ideal"] and marked.count_ops()["delay"] == 1
+
+
+def test_every_part_ideal_gives_the_trivial_record_on_the_pinned_circuits():
+    needs("qiskit")
+    needs("qiskit_aer")
+    try:
+        circs = gl.load_circuits(os.path.join(ROOT, "results", "hardware_shor_pinned_ibm_fez_circuits.qpy"))
+    except RuntimeError as exc:
+        skip(str(exc))
+    cal = json.load(open(os.path.join(ROOT, "results", "hardware_shor_pinned_ibm_fez_calibration.json")))["calibration"]
+    for counts in gl.run_round(circs[-2:], cal, 300, gl.spaced_seeds(2, 300), gl.PARTS):
+        assert counts == {"000000": 300}
+    delays = lambda c, ideal: gl.compress(c, ideal)[0].count_ops().get("delay", 0)
+    assert delays(circs[-1], ()) - delays(circs[-1], ("window",)) == 15
+    assert delays(circs[0], ()) == delays(circs[0], ("window",))
